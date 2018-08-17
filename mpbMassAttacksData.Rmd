@@ -1,0 +1,28 @@
+---
+title: "mpbRedTopMassAttacks"
+author:
+  - "Alex M. Chubaty"
+  - "Barry J. Cooke"
+  - "Eliot J. B. McIntire"
+date: "February 5, 2018"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+bibliography:
+  - ../../bibliography.bib
+---
+
+### `mpbMassAttacksData`
+
+This module imports the raw MPB red-top attack data from AB and BC over several years (2001-2016), following the methodology of @Cooke:2017fem.
+MPB attack data for AB (derived from spatial points) and BC (derived from spatial polygons) were reprojected to use an Albers equal-area conic projection and rasterized using a common resolution of 250 m x 250 m (matching the pine raster data) and merged into a single raster layer for each year.
+BC raster cell were calculated from the proportion of a polygon within that cell, again assuming an average stem density of 1125 stems/ha [per @Whitehead:2004rz].
+Raster cells for AB were calculated by summing the point values within each 6.25 ha raster cell.
+Where possible, all data downloads and preprocessing were scripted for reproducibility from raw, original sources.
+
+Because of the long processing time and high memory requirements of the GIS operations performed during data preprocessing, with use a combination of caching approaches – implemented in the `reproducible` R package [@McIntire:2018reproducible] – to speed up subsequent loading and use of these data.
+All preprocessed data are made available in a private Google Drive folder, and subsequently downloaded from there when used by a `SpaDES` module.
+
+#### References
