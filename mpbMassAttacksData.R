@@ -68,16 +68,12 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 }
 
 .inputObjects <- function(sim) {
-  # ! ----- EDIT BELOW ----- ! #
-  if (!('studyArea' %in% sim$.userSuppliedObjNames)) {
-    f <- file.path(modulePath(sim), "mpbMassAttacksData", "data", "studyArea.kml")
+  if (!suppliedElsewhere("studyArea")) {
     prj <- paste("+proj=aea +lat_1=47.5 +lat_2=54.5 +lat_0=0 +lon_0=-113",
                  "+x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
-    sim$studyArea <- readOGR(f, "studyArea.kml") %>%
-      sp::spTransform(., prj)
+    sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", prj)
   }
 
-  # ! ----- STOP EDITING ----- ! #
   return(invisible(sim))
 }
 
@@ -95,8 +91,7 @@ mpbMassAttacksDataInit <- function(sim) {
 
   # load each of the annual rasters and stack them
   layerNames <- paste0("X", c(1998, 2001:2016))
-  files <- file.path(modulePath(sim), "mpbMassAttacksData", "data",
-                     "mpb_bcab_boreal_1998-2016.tif")
+  files <- file.path(dataPath(sim), "mpb_bcab_boreal_1998-2016.tif")
   allMaps <- stack(files) %>% set_names(layerNames)
 
   ## crop and reproject for the study area
