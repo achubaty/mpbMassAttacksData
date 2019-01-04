@@ -1,3 +1,7 @@
-*.grd
-*.gri
-*.tif
+## ignore all
+*
+
+## don't ignore
+!CHECKSUMS.txt
+!.gitignore
+!studyArea.kml
