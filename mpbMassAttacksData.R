@@ -137,7 +137,8 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 
     sim$studyAreaLarge <- spTransform(west, prj) %>%
       sf::st_as_sf() %>%
-      sf::st_intersection(sim$borealMap)
+      sf::st_intersection(sim$borealMap) %>%
+      as(., "Spatial") ## TODO: temporary conversion back to sp (we will need it sf later)
   }
 
   ## stand age map
