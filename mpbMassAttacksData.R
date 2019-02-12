@@ -130,7 +130,9 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 
   ## studyAreaLarge
   if (!suppliedElsewhere("studyAreaLarge")) {
-    CAN_adm1 <- raster::getData("GADM", country = "CAN", level = 1, path = dPath)
+    CAN_adm1 <- getData("GADM", country = "CAN", level = 1, path = dPath) %>%
+      spTransform(mod$prj) %>%
+      fixErrors(objectName = "CAN_adm1")
 
     west <- CAN_adm1[(CAN_adm1$NAME_1 == "Alberta" | CAN_adm1$NAME_1 == "Saskatchewan"), ]
 
@@ -233,3 +235,4 @@ Init <- function(sim) {
   sim$massAttacksDT <- sim$massAttacksDT[NUMTREES > 0]
   return(invisible(sim))
 }
+
