@@ -99,10 +99,12 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
   if (getOption("LandR.verbose", TRUE) > 0)
     message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
+  ## use lcc proj to match kNN (previously used aea)
+  prj <- paste("+proj=lcc +lat_1=49 +lat_2=77 +lat_0=0 +lon_0=-95",
+               "+x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+
   ## load study area
   if (!suppliedElsewhere("studyArea")) {
-    prj <- paste("+proj=aea +lat_1=47.5 +lat_2=54.5 +lat_0=0 +lon_0=-113",
-                 "+x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
     sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", prj)
   }
 
@@ -110,8 +112,7 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
   if (!suppliedElsewhere("borealMap")) {
     fname <- file.path(dPath, "NABoreal.shp")
     fexts <- c(".dbf", ".prj", ".sbn", ".sbx", ".shp.xml", ".shx")
-    prj <- paste("+proj=aea +lat_1=47.5 +lat_2=54.5 +lat_0=0 +lon_0=-113",
-                 "+x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
+
     Cache(preProcess,
           targetFile = basename("NABoreal.shp"),
           alsoExtract = vapply(fexts, extension, character(1), filename = basename(fname)), #"similar",
@@ -131,8 +132,6 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
   if (!suppliedElsewhere("studyAreaLarge")) {
     CAN_adm1 <- raster::getData("GADM", country = "CAN", level = 1, path = dPath)
 
-    prj <- paste("+proj=aea +lat_1=47.5 +lat_2=54.5 +lat_0=0 +lon_0=-113",
-                 "+x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
     west <- CAN_adm1[(CAN_adm1$NAME_1 == "Alberta" | CAN_adm1$NAME_1 == "Saskatchewan"), ]
 
     sim$studyAreaLarge <- spTransform(west, prj) %>%
@@ -213,20 +212,20 @@ Init <- function(sim) {
                     filename2 = NULL,
                     overwrite = TRUE,
                     userTags = c("stable", currentModule(sim)))
-
+browser()
   allMaps <- stack(fname) %>% set_names(layerNames)
   sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames) ## TODO: avoid reprojecting raster (lossy)
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
   # TODO: use fasterize (requires use of sf)
-  rstStudyArea <- Cache(rasterize, sim$studyArea, sim$massAttacksMap[[15]])
+  rstStudyArea <- Cache(rasterize, sim$studyAreaLarge, sim$massAttacksMap[[15]])
 
   ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
   sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$massAttacksMap),
                                   NUMTREES = sim$massAttacksMap[[paste0("X", start(sim))]][])
   setkey(sim$massAttacksDT, "ID")
   sim$massAttacksDT <- sim$massAttacksDT[NUMTREES > 0]
-browser()
+
   # join with pine data.table
   sim$massAttacksDT <- sim$massAttacksDT[sim$pineDT, nomatch = 0]
 
