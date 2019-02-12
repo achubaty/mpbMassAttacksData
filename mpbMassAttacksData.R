@@ -13,7 +13,7 @@ defineModule(sim, list(
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list(),
-  reqdPkgs = list("amc", "data.table", "quickPlot", "magrittr", "raster", "RColorBrewer", "reproducible"),
+  reqdPkgs = list("amc", "data.table", "quickPlot", "magrittr", "raster", "RColorBrewer", "reproducible", "sf"),
   parameters = rbind(
     defineParameter(".maxMemory", "numeric", 1e+9, NA, NA,
                     "Used to set the 'maxmemory' raster option. See '?rasterOptions'."),
@@ -31,10 +31,13 @@ defineModule(sim, list(
                     "Should this entire module be run with caching activated?")
   ),
   inputObjects = bind_rows(
+    expectsInput("borealMap", "sf",
+                 desc = "Shapefile of the boreal forest.",
+                 sourceURL = "http://cfs.nrcan.gc.ca/common/boreal.zip"),
     expectsInput("massAttacksMapFile", "RasterLayer",
                  desc = "temporary pre-build raster stack of mpb attacks", ## TODO: incororate creation of this into the module
                  #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La/view?usp=sharing"), ## BC+AB
-                 sourceurl = "https://drive.google.com/file/d/1i4wRPjGDpaBOL6gs7FB9bQ9qqCTUyybw/view?usp=sharing"), ## AB only
+                 sourceURL = "https://drive.google.com/file/d/1i4wRPjGDpaBOL6gs7FB9bQ9qqCTUyybw/view?usp=sharing"), ## AB only
     expectsInput("pineDT", "data.table",
                  desc = "Proportion cover etc. by species (lodgepole and jack pine).",
                  sourceURL = NA),
@@ -103,6 +106,40 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
     sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", prj)
   }
 
+  ## boreal map
+  if (!suppliedElsewhere("borealMap")) {
+    fname <- file.path(dPath, "NABoreal.shp")
+    fexts <- c(".dbf", ".prj", ".sbn", ".sbx", ".shp.xml", ".shx")
+    prj <- paste("+proj=aea +lat_1=47.5 +lat_2=54.5 +lat_0=0 +lon_0=-113",
+                 "+x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
+    Cache(preProcess,
+          targetFile = basename("NABoreal.shp"),
+          alsoExtract = vapply(fexts, extension, character(1), filename = basename(fname)), #"similar",
+          archive = asPath("boreal.zip"),
+          destinationPath = dPath,
+          url = extractURL("borealMap"),
+          #fun = "sf::read_sf",
+          #studyArea = sim$studyArea,
+          filename2 = NULL,
+          userTags = c("stable", currentModule(sim)))
+
+    boreal <- sf::read_sf(fname) %>% sf::st_transform(prj)
+    sim$borealMap <- boreal[boreal$COUNTRY == "CANADA", ]
+  }
+
+  ## studyAreaLarge
+  if (!suppliedElsewhere("studyAreaLarge")) {
+    CAN_adm1 <- raster::getData("GADM", country = "CAN", level = 1, path = dPath)
+
+    prj <- paste("+proj=aea +lat_1=47.5 +lat_2=54.5 +lat_0=0 +lon_0=-113",
+                 "+x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
+    west <- CAN_adm1[(CAN_adm1$NAME_1 == "Alberta" | CAN_adm1$NAME_1 == "Saskatchewan"), ]
+
+    sim$studyAreaLarge <- spTransform(west, prj) %>%
+      sf::st_as_sf() %>%
+      sf::st_intersection(sim$borealMap)
+  }
+
   ## stand age map
   if (!suppliedElsewhere("standAgeMap", sim)) {
     standAgeMapFilename <- file.path(dPath, "NFI_MODIS250m_kNN_Structure_Stand_Age_v0.tif")
@@ -143,7 +180,8 @@ Init <- function(sim) {
 
   # load each of the annual rasters and stack them
   layerNames <- paste0("X", c(1998, 2001:2016))
-  fname <- file.path(dataPath(sim), "mpb_bcab_boreal_1998-2016.tif")
+  #fname <- file.path(dataPath(sim), "mpb_bcab_boreal_1998-2016.tif")
+  fname <- file.path(dataPath(sim), "MPB_AB_pnts_1998-2016.tif")
 
   ## TODO: prepInputs can't handle a stack...at all...it returns a brick of all NA values
   # sim$massAttacksMap <- Cache(prepInputs,
@@ -152,7 +190,7 @@ Init <- function(sim) {
   #                             destinationPath = asPath(dataPath(sim)),
   #                             url = extractURL("massAttacksMapFile"),
   #                             fun = "raster::stack",
-  #                             studyArea = sim$studyArea,
+  #                             studyArea = sim$studyAreaLarge,
   #                             rasterToMatch = sim$rasterToMatch,
   #                             method = "bilinear",
   #                             datatype = "FLT4S",
@@ -174,9 +212,9 @@ Init <- function(sim) {
                     filename2 = NULL,
                     overwrite = TRUE,
                     userTags = c("stable", currentModule(sim)))
-browser()
+
   allMaps <- stack(fname) %>% set_names(layerNames)
-  sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyArea, layerNames)
+  sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames) ## TODO: avoid reprojecting raster (lossy)
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
   # TODO: use fasterize (requires use of sf)
