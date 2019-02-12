@@ -33,7 +33,8 @@ defineModule(sim, list(
   inputObjects = bind_rows(
     expectsInput("massAttacksMapFile", "RasterLayer",
                  desc = "temporary pre-build raster stack of mpb attacks", ## TODO: incororate creation of this into the module
-                 sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La/view?usp=sharing"),
+                 #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La/view?usp=sharing"), ## BC+AB
+                 sourceurl = "https://drive.google.com/file/d/1i4wRPjGDpaBOL6gs7FB9bQ9qqCTUyybw/view?usp=sharing"), ## AB only
     expectsInput("pineDT", "data.table",
                  desc = "Proportion cover etc. by species (lodgepole and jack pine).",
                  sourceURL = NA),
