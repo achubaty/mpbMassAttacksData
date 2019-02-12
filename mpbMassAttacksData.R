@@ -227,6 +227,5 @@ Init <- function(sim) {
                                   NUMTREES = sim$massAttacksMap[[paste0("X", start(sim))]][])
   setkey(sim$massAttacksDT, "ID")
   sim$massAttacksDT <- sim$massAttacksDT[NUMTREES > 0]
-
   return(invisible(sim))
 }
