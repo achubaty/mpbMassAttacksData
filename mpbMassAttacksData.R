@@ -230,7 +230,6 @@ Init <- function(sim) {
                                   NUMTREES = sim$massAttacksMap[[paste0("X", start(sim))]][])
   setkey(sim$massAttacksDT, "ID")
   sim$massAttacksDT <- sim$massAttacksDT[NUMTREES > 0]
-browser()
   # join with pine data.table
   sim$massAttacksDT <- sim$massAttacksDT[sim$pineDT, nomatch = 0] ## TODO: verify these match up correctly
 
