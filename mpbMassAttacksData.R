@@ -212,9 +212,14 @@ Init <- function(sim) {
                     filename2 = NULL,
                     overwrite = TRUE,
                     userTags = c("stable", currentModule(sim)))
-browser()
+
   allMaps <- stack(fname) %>% set_names(layerNames)
-  sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames) ## TODO: avoid reprojecting raster (lossy)
+
+  if (identical(proj4string(allMaps), proj4string(sim$studyAreaLarge))) {
+    sim$massAttacksMap <- Cache(crop, x = allMaps, y = sim$studyAreaLarge)
+  } else {
+    sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames) ## TODO: avoid reprojecting raster (lossy)
+  }
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
   # TODO: use fasterize (requires use of sf)
@@ -225,9 +230,9 @@ browser()
                                   NUMTREES = sim$massAttacksMap[[paste0("X", start(sim))]][])
   setkey(sim$massAttacksDT, "ID")
   sim$massAttacksDT <- sim$massAttacksDT[NUMTREES > 0]
-
+browser()
   # join with pine data.table
-  sim$massAttacksDT <- sim$massAttacksDT[sim$pineDT, nomatch = 0]
+  sim$massAttacksDT <- sim$massAttacksDT[sim$pineDT, nomatch = 0] ## TODO: verify these match up correctly
 
   return(invisible(sim))
 }
