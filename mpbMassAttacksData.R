@@ -100,12 +100,12 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
     message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
   ## use lcc proj to match kNN (previously used aea)
-  prj <- paste("+proj=lcc +lat_1=49 +lat_2=77 +lat_0=0 +lon_0=-95",
-               "+x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+  mod$prj <- paste("+proj=lcc +lat_1=49 +lat_2=77 +lat_0=0 +lon_0=-95",
+                   "+x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 
   ## load study area
   if (!suppliedElsewhere("studyArea")) {
-    sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", prj)
+    sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", mod$prj)
   }
 
   ## boreal map
@@ -124,7 +124,7 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
           filename2 = NULL,
           userTags = c("stable", currentModule(sim)))
 
-    boreal <- sf::read_sf(fname) %>% sf::st_transform(prj)
+    boreal <- sf::read_sf(fname) %>% sf::st_transform(mod$prj)
     sim$borealMap <- boreal[boreal$COUNTRY == "CANADA", ]
   }
 
@@ -134,9 +134,10 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 
     west <- CAN_adm1[(CAN_adm1$NAME_1 == "Alberta" | CAN_adm1$NAME_1 == "Saskatchewan"), ]
 
-    sim$studyAreaLarge <- spTransform(west, prj) %>%
+    sim$studyAreaLarge <- spTransform(west, mod$prj) %>%
       sf::st_as_sf() %>%
       sf::st_intersection(sim$borealMap) %>%
+      sf::st_buffer(0) %>%
       as(., "Spatial") ## TODO: temporary conversion back to sp (we will need it sf later)
   }
 
