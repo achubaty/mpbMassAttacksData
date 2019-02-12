@@ -46,6 +46,9 @@ defineModule(sim, list(
                  sourceURL = "http://tree.pfc.forestry.ca/kNN-StructureStandVolume.tar"),
     expectsInput("studyArea", "SpatialPolygons",
                  desc = "The study area to which all maps will be cropped and reprojected.",
+                 sourceURL = NA),
+    expectsInput("studyAreaLarge", "SpatialPolygons",
+                 desc = "The larger study area to use for spread parameter estimation.", ## TODO: better desc needed
                  sourceURL = NA)
   ),
   outputObjects = bind_rows(
