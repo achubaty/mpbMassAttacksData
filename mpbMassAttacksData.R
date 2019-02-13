@@ -31,7 +31,7 @@ defineModule(sim, list(
                     "Should this entire module be run with caching activated?")
   ),
   inputObjects = bind_rows(
-    expectsInput("borealMap", "sf",
+    expectsInput("borealMap", "SpatialPolygonsDataFrame", ## TODO: use sf
                  desc = "Shapefile of the boreal forest.",
                  sourceURL = "http://cfs.nrcan.gc.ca/common/boreal.zip"),
     expectsInput("massAttacksMapFile", "RasterLayer",
@@ -124,15 +124,15 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
           filename2 = NULL,
           userTags = c("stable", currentModule(sim)))
 
-    boreal <- sf::read_sf(fname) %>% sf::st_transform(mod$prj)
+    boreal <- sf::read_sf(fname) %>%
+      sf::st_transform(mod$prj) %>%
+      sf::st_buffer(0)
     sim$borealMap <- boreal[boreal$COUNTRY == "CANADA", ]
   }
 
   ## studyAreaLarge
   if (!suppliedElsewhere("studyAreaLarge")) {
-    CAN_adm1 <- getData("GADM", country = "CAN", level = 1, path = dPath) %>%
-      spTransform(mod$prj) %>%
-      fixErrors(objectName = "CAN_adm1")
+    CAN_adm1 <- Cache(prepGADM, country = "CAN", level = 1, proj = mod$prj, dPath = dPath)
 
     west <- CAN_adm1[(CAN_adm1$NAME_1 == "Alberta" | CAN_adm1$NAME_1 == "Saskatchewan"), ]
 
