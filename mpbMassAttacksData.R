@@ -31,7 +31,7 @@ defineModule(sim, list(
                     "Should this entire module be run with caching activated?")
   ),
   inputObjects = bind_rows(
-    expectsInput("borealMap", "SpatialPolygonsDataFrame", ## TODO: use sf
+    expectsInput("borealMap", "sf",
                  desc = "Shapefile of the boreal forest.",
                  sourceURL = "http://cfs.nrcan.gc.ca/common/boreal.zip"),
     expectsInput("massAttacksMapFile", "RasterLayer",
@@ -108,39 +108,31 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
     sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", mod$prj)
   }
 
-  ## boreal map
-  if (!suppliedElsewhere("borealMap")) {
-    fname <- file.path(dPath, "NABoreal.shp")
-    fexts <- c(".dbf", ".prj", ".sbn", ".sbx", ".shp.xml", ".shx")
-
-    Cache(preProcess,
-          targetFile = basename("NABoreal.shp"),
-          alsoExtract = vapply(fexts, extension, character(1), filename = basename(fname)), #"similar",
-          archive = asPath("boreal.zip"),
-          destinationPath = dPath,
-          url = extractURL("borealMap"),
-          #fun = "sf::read_sf",
-          #studyArea = sim$studyArea,
-          filename2 = NULL,
-          userTags = c("stable", currentModule(sim)))
-
-    boreal <- sf::read_sf(fname) %>%
-      sf::st_transform(mod$prj) %>%
-      sf::st_buffer(0)
-    sim$borealMap <- boreal[boreal$COUNTRY == "CANADA", ]
-  }
-
   ## studyAreaLarge
   if (!suppliedElsewhere("studyAreaLarge")) {
-    CAN_adm1 <- Cache(prepGADM, country = "CAN", level = 1, proj = mod$prj, dPath = dPath)
+    canProvs <- Cache(prepInputs, dlFun = "getData", "GADM", country = "CAN",
+                      level = 1, path = dPath,
+                      targetFile = "gadm36_CAN_1_sp.rds", ## TODO: this will change as GADM data update
+                      fun = "base::readRDS")
 
-    west <- CAN_adm1[(CAN_adm1$NAME_1 == "Alberta" | CAN_adm1$NAME_1 == "Saskatchewan"), ]
+    west <- canProvs[canProvs$NAME_1 %in% c("Alberta", "Saskatchewan"), ]
+    west <- Cache(postProcess, west, targetCRS = mod$prj, filename2 = NULL)
+    sim$studyAreaLarge <- as(west, "Spatial") ## TODO: temporary conversion back to sp (we will need it sf later)
+  }
 
-    sim$studyAreaLarge <- spTransform(west, mod$prj) %>%
-      sf::st_as_sf() %>%
-      sf::st_intersection(sim$borealMap) %>%
-      sf::st_buffer(0) %>%
-      as(., "Spatial") ## TODO: temporary conversion back to sp (we will need it sf later)
+  ## boreal map
+  if (!suppliedElsewhere("borealMap")) {
+    sim$borealMap <- Cache(prepInputs,
+                           targetFile = "NABoreal.shp",
+                           alsoExtract = "similar",
+                           archive = asPath("boreal.zip"),
+                           destinationPath = dPath,
+                           url = extractURL("borealMap"),
+                           fun = "sf::read_sf",
+                           useSAcrs = TRUE,
+                           studyArea = west,
+                           filename2 = NULL,
+                           userTags = c("stable", currentModule(sim), "NorthAmericanBoreal"))
   }
 
   ## stand age map
