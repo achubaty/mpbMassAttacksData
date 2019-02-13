@@ -122,6 +122,9 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 
   ## boreal map
   if (!suppliedElsewhere("borealMap")) {
+    west <- canProvs[canProvs$NAME_1 %in% c("Alberta", "Saskatchewan"), ]
+    west <- Cache(postProcess, west, targetCRS = mod$prj, filename2 = NULL)
+
     sim$borealMap <- Cache(prepInputs,
                            targetFile = "NABoreal.shp",
                            alsoExtract = "similar",
