@@ -108,23 +108,21 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
     sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", mod$prj)
   }
 
+  canProvs <- Cache(prepInputs, dlFun = "getData", "GADM", country = "CAN",
+                    level = 1, path = dPath,
+                    targetFile = "gadm36_CAN_1_sp.rds", ## TODO: this will change as GADM data update
+                    fun = "base::readRDS")
+
+  west <- canProvs[canProvs$NAME_1 %in% c("Alberta", "Saskatchewan"), ]
+  west <- Cache(postProcess, west, targetCRS = mod$prj, filename2 = NULL)
+
   ## studyAreaLarge
   if (!suppliedElsewhere("studyAreaLarge")) {
-    canProvs <- Cache(prepInputs, dlFun = "getData", "GADM", country = "CAN",
-                      level = 1, path = dPath,
-                      targetFile = "gadm36_CAN_1_sp.rds", ## TODO: this will change as GADM data update
-                      fun = "base::readRDS")
-
-    west <- canProvs[canProvs$NAME_1 %in% c("Alberta", "Saskatchewan"), ]
-    west <- Cache(postProcess, west, targetCRS = mod$prj, filename2 = NULL)
     sim$studyAreaLarge <- as(west, "Spatial") ## TODO: temporary conversion back to sp (we will need it sf later)
   }
 
   ## boreal map
   if (!suppliedElsewhere("borealMap")) {
-    west <- canProvs[canProvs$NAME_1 %in% c("Alberta", "Saskatchewan"), ]
-    west <- Cache(postProcess, west, targetCRS = mod$prj, filename2 = NULL)
-
     sim$borealMap <- Cache(prepInputs,
                            targetFile = "NABoreal.shp",
                            alsoExtract = "similar",
