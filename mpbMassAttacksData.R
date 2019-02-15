@@ -230,9 +230,12 @@ Init <- function(sim) {
 
   ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
   sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$massAttacksMap),
-                                  NUMTREES = sim$massAttacksMap[[paste0("X", start(sim))]][])
-  setkey(sim$massAttacksDT, "ID")
-  sim$massAttacksDT <- sim$massAttacksDT[NUMTREES > 0]
+                                  ATKTREES = sim$massAttacksMap[[paste0("X", start(sim))]][]) %>%
+    setkey(., "ID")
+  sim$massAttacksDT <- sim$massAttacksDT[ATKTREES > 0]
+browser()
+  ids <- sim$massAttacksDT$ID
+  sim$massAttacksDT <- sim$massAttacksDT[, NUMTREES := sim$pineDT[ID %in% ids]$NUMTREES]
+
   return(invisible(sim))
 }
-
