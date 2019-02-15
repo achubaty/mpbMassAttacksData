@@ -234,8 +234,8 @@ Init <- function(sim) {
     setkey(., "ID")
   sim$massAttacksDT <- sim$massAttacksDT[ATKTREES > 0]
 browser()
-  ids <- sim$massAttacksDT$ID
-  sim$massAttacksDT <- sim$massAttacksDT[, NUMTREES := sim$pineDT[ID %in% ids]$NUMTREES]
+  #ids <- sim$massAttacksDT$ID
+  #sim$massAttacksDT <- sim$massAttacksDT[, NUMTREES := sim$pineDT[ID %in% ids]$NUMTREES]
 
   return(invisible(sim))
 }
