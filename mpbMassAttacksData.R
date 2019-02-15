@@ -211,10 +211,17 @@ Init <- function(sim) {
 
   allMaps <- stack(fname) %>% set_names(layerNames)
 
-  if (identical(proj4string(allMaps), proj4string(sim$studyAreaLarge))) {
+  if (identical(sf::st_crs(allMaps), sf::st_crs(sim$studyAreaLarge))) {
+    ## TODO: sf simplifies the proj4string of 'allMap', so although they are the
+    ## same they aren't identical, but raster and sp will throw warnings if they
+    ## aren't, so force them to be...
+    if (!identical(proj4string(allMaps), proj4string(sim$studyAreaLarge)))
+      proj4string(allMaps) <- proj4string(sim$studyAreaLarge)
+
     sim$massAttacksMap <- Cache(crop, x = allMaps, y = sim$studyAreaLarge)
   } else {
-    sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames) ## TODO: avoid reprojecting raster (lossy)
+    ## TODO: avoid reprojecting raster (lossy)
+    sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames)
   }
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
