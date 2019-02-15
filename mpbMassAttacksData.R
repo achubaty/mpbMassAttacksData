@@ -209,7 +209,7 @@ Init <- function(sim) {
                     overwrite = TRUE,
                     userTags = c("stable", currentModule(sim)))
 
-  allMaps <- stack(fname) %>% set_names(layerNames)
+  allMaps <- stack(fname) %>% setNames(layerNames)
 
   if (identical(sf::st_crs(allMaps), sf::st_crs(sim$studyAreaLarge))) {
     ## TODO: sf simplifies the proj4string of 'allMap', so although they are the
@@ -223,6 +223,7 @@ Init <- function(sim) {
     ## TODO: avoid reprojecting raster (lossy)
     sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames)
   }
+
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
   # TODO: use fasterize (requires use of sf)
