@@ -226,8 +226,7 @@ Init <- function(sim) {
 
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
-  # TODO: use fasterize (requires use of sf)
-  rstStudyArea <- Cache(rasterize, sim$studyAreaLarge, sim$massAttacksMap[[15]])
+  rstStudyArea <- Cache(fasterize, sf::st_as_sf(sim$studyAreaLarge), sim$massAttacksMap[[15]])
 
   ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
   sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$massAttacksMap),
