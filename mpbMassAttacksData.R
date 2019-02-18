@@ -52,6 +52,9 @@ defineModule(sim, list(
                  sourceURL = NA)
   ),
   outputObjects = bind_rows(
+    createsOutput("currentAttacks", "RasterLayer",
+                  desc = "Current year MPB attack maps (number of red attacked trees).",
+                  sourceURL = NA),
     createsOutput("massAttacksMap", "RasterStack",
                   desc = "Historical MPB attack maps (number of red attacked trees).",
                   sourceURL = NA)
@@ -226,11 +229,12 @@ Init <- function(sim) {
 
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
-  rstStudyArea <- Cache(fasterize, sf::st_as_sf(sim$studyAreaLarge), sim$massAttacksMap[[15]])
+  sim$currentAttacks <- sim$massAttacksMap[[paste0("X", start(sim))]]
+  setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
 
   ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
-  sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$massAttacksMap),
-                                  ATKTREES = sim$massAttacksMap[[paste0("X", start(sim))]][]) %>%
+  sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$currentAttacks),
+                                  ATKTREES = sim$currentAttacks[]) %>%
     setkey(., "ID")
   sim$massAttacksDT <- sim$massAttacksDT[ATKTREES > 0]
 
