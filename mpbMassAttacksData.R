@@ -79,7 +79,7 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
     "plot" = {
       # ! ----- EDIT BELOW ----- ! #
       # do stuff for this event
-      Plot(sim$massAttacksMap)
+      #Plot(sim$massAttacksMap)
 
       # schedule future event(s)
       sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotInterval,
@@ -218,7 +218,7 @@ Init <- function(sim) {
     if (!identical(proj4string(allMaps), proj4string(sim$studyAreaLarge)))
       proj4string(allMaps) <- proj4string(sim$studyAreaLarge)
 
-    sim$massAttacksMap <- Cache(crop, x = allMaps, y = sim$studyAreaLarge)
+    sim$massAttacksMap <- Cache(crop, x = allMaps, y = sim$studyAreaLarge) %>% stack()
   } else {
     ## TODO: avoid reprojecting raster (lossy)
     sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames)
@@ -233,9 +233,6 @@ Init <- function(sim) {
                                   ATKTREES = sim$massAttacksMap[[paste0("X", start(sim))]][]) %>%
     setkey(., "ID")
   sim$massAttacksDT <- sim$massAttacksDT[ATKTREES > 0]
-browser()
-  #ids <- sim$massAttacksDT$ID
-  #sim$massAttacksDT <- sim$massAttacksDT[, NUMTREES := sim$pineDT[ID %in% ids]$NUMTREES]
 
   return(invisible(sim))
 }
