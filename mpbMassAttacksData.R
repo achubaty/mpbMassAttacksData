@@ -31,9 +31,6 @@ defineModule(sim, list(
                     "Should this entire module be run with caching activated?")
   ),
   inputObjects = bind_rows(
-    expectsInput("borealMap", "sf",
-                 desc = "Shapefile of the boreal forest.",
-                 sourceURL = "http://cfs.nrcan.gc.ca/common/boreal.zip"),
     expectsInput("massAttacksMapFile", "RasterLayer",
                  desc = "temporary pre-build raster stack of mpb attacks", ## TODO: incororate creation of this into the module
                  #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La/view?usp=sharing"), ## BC+AB
@@ -116,27 +113,23 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
                     targetFile = "gadm36_CAN_1_sp.rds", ## TODO: this will change as GADM data update
                     fun = "base::readRDS")
 
-  west <- canProvs[canProvs$NAME_1 %in% c("Alberta", "Saskatchewan"), ]
-  west <- Cache(postProcess, west, targetCRS = mod$prj, filename2 = NULL)
-
   ## studyAreaLarge
   if (!suppliedElsewhere("studyAreaLarge")) {
-    sim$studyAreaLarge <- as(west, "Spatial") ## TODO: temporary conversion back to sp (we will need it sf later)
-  }
+    west <- canProvs[canProvs$NAME_1 %in% c("Alberta", "Saskatchewan"), ]
+    west <- Cache(postProcess, west, targetCRS = mod$prj, filename2 = NULL)
 
-  ## boreal map
-  if (!suppliedElsewhere("borealMap")) {
-    sim$borealMap <- Cache(prepInputs,
-                           targetFile = "NABoreal.shp",
-                           alsoExtract = "similar",
-                           archive = asPath("boreal.zip"),
-                           destinationPath = dPath,
-                           url = extractURL("borealMap"),
-                           fun = "sf::read_sf",
-                           useSAcrs = TRUE,
-                           studyArea = west,
-                           filename2 = NULL,
-                           userTags = c("stable", currentModule(sim), "NorthAmericanBoreal"))
+    sim$studyAreaLarge <- Cache(prepInputs,
+                                targetFile = "NABoreal.shp",
+                                alsoExtract = "similar",
+                                archive = asPath("boreal.zip"),
+                                destinationPath = dPath,
+                                url = "http://cfs.nrcan.gc.ca/common/boreal.zip",
+                                fun = "sf::read_sf",
+                                useSAcrs = TRUE,
+                                studyArea = west,
+                                filename2 = NULL,
+                                userTags = c("stable", currentModule(sim), "NorthAmericanBoreal")) %>%
+      as("Spatial")
   }
 
   ## stand age map
