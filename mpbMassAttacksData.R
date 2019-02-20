@@ -231,6 +231,7 @@ Init <- function(sim) {
 
   sim$currentAttacks <- sim$massAttacksMap[[paste0("X", start(sim))]]
   setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
+  sim$currentAttacks <- Cache(raster::resample, sim$currentAttacks, sim$pineMap, method = "ngb")
 
   ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
   sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$currentAttacks),
