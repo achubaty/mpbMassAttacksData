@@ -108,8 +108,9 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
     sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", mod$prj)
   }
 
-  canProvs <- Cache(prepInputs, dlFun = "getData", "GADM", country = "CAN",
-                    level = 1, path = dPath,
+  canProvs <- Cache(prepInputs, dlFun = "raster::getData", "GADM",
+                    country = "CAN", level = 1, path = dPath,
+                    destinationPath = dPath,
                     targetFile = "gadm36_CAN_1_sp.rds", ## TODO: this will change as GADM data update
                     fun = "base::readRDS")
 
