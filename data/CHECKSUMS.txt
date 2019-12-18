@@ -10,3 +10,5 @@
 "NABoreal.sbx" "4a6b9b4d83c1a367" "xxhash64" "2020"
 "NABoreal.shp.xml" "e07352739b2de5fe" "xxhash64" "26936"
 "NABoreal.shx" "2dec516a85283779" "xxhash64" "62484"
+"gadm36_CAN_1_sp.rds" "84dce5fd4dec8ca4" "xxhash64" "19080838"
+"NABoreal_metadata.htm" "f432132a4977c8a7" "xxhash64" "63672"

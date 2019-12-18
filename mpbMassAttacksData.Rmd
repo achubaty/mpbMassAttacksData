@@ -25,4 +25,3 @@ Where possible, all data downloads and preprocessing were scripted for reproduci
 Because of the long processing time and high memory requirements of the GIS operations performed during data preprocessing, with use a combination of caching approaches – implemented in the `reproducible` R package [@McIntire:2018reproducible] – to speed up subsequent loading and use of these data.
 All preprocessed data are made available in a private Google Drive folder, and subsequently downloaded from there when used by a `SpaDES` module.
 
-#### References
