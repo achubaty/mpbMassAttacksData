@@ -13,7 +13,8 @@ defineModule(sim, list(
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list(),
-  reqdPkgs = list("amc", "data.table", "quickPlot", "magrittr", "raster", "RColorBrewer", "reproducible", "sf"),
+  reqdPkgs = list("achubaty/amc@development", "data.table", "magrittr", "quickPlot",
+                  "raster", "RColorBrewer", "reproducible", "sf"),
   parameters = rbind(
     defineParameter(".maxMemory", "numeric", 1e+9, NA, NA,
                     "Used to set the 'maxmemory' raster option. See '?rasterOptions'."),
@@ -32,7 +33,7 @@ defineModule(sim, list(
   ),
   inputObjects = bind_rows(
     expectsInput("massAttacksMapFile", "RasterLayer",
-                 desc = "temporary pre-build raster stack of mpb attacks", ## TODO: incororate creation of this into the module
+                 desc = "temporary pre-build raster stack of mpb attacks", ## TODO: incorporate creation of this into the module
                  #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La/view?usp=sharing"), ## BC+AB
                  sourceURL = "https://drive.google.com/file/d/1i4wRPjGDpaBOL6gs7FB9bQ9qqCTUyybw/view?usp=sharing"), ## AB only
     expectsInput("rasterToMatch", "RasterLayer",
@@ -40,7 +41,10 @@ defineModule(sim, list(
                  sourceURL = NA),
     expectsInput("standAgeMap", "RasterLayer",
                  desc = "stand age map in study area, default is Canada national stand age map",
-                 sourceURL = "http://tree.pfc.forestry.ca/kNN-StructureStandVolume.tar"),
+                 sourceURL = paste0("http://ftp.maps.canada.ca/pub/nrcan_rncan/Forests_Foret/",
+                                    "canada-forests-attributes_attributs-forests-canada/",
+                                    "2001-attributes_attributs-2001/",
+                                    "NFI_MODIS250m_2001_kNN_Structure_Stand_Age_v1.tif")),
     expectsInput("studyArea", "SpatialPolygons",
                  desc = "The study area to which all maps will be cropped and reprojected.",
                  sourceURL = NA),
@@ -135,21 +139,10 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 
   ## stand age map
   if (!suppliedElsewhere("standAgeMap", sim)) {
-    standAgeMapFilename <- file.path(dPath, "NFI_MODIS250m_kNN_Structure_Stand_Age_v0.tif")
-    sim$standAgeMap <- Cache(prepInputs,
-                             targetFile = basename(standAgeMapFilename),
-                             archive = asPath(c("kNN-StructureStandVolume.tar",
-                                                "NFI_MODIS250m_kNN_Structure_Stand_Age_v0.zip")),
-                             destinationPath = dPath,
-                             url = na.omit(extractURL("standAgeMap")),
-                             fun = "raster::raster",
-                             studyArea = sim$studyArea,
-                             #rasterToMatch = sim$rasterToMatch,
-                             method = "bilinear",
-                             datatype = "INT2U",
-                             filename2 = paste0(tools::file_path_sans_ext(basename(standAgeMapFilename)), "_cropped"),
-                             overwrite = TRUE,
-                             userTags = c("stable", currentModule(sim)))
+    sim$standAgeMap <- amc::loadkNNageMap(path = dPath,
+                                          url = na.omit(extractURL("standAgeMap")),
+                                          studyArea = sim$studyArea,
+                                          userTags = c("stable", currentModule(sim)))
     sim$standAgeMap[] <- asInteger(sim$standAgeMap[])
   }
 
