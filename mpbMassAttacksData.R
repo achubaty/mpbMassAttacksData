@@ -14,7 +14,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list(),
   reqdPkgs = list("achubaty/amc@development", "data.table", "magrittr", "quickPlot",
-                  "raster", "RColorBrewer", "reproducible", "sf"),
+                  "raster", "RColorBrewer", "reproducible", "sf", "sp", "spatialEco"),
   parameters = rbind(
     defineParameter(".maxMemory", "numeric", 1e+9, NA, NA,
                     "Used to set the 'maxmemory' raster option. See '?rasterOptions'."),
@@ -103,7 +103,8 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
   if (getOption("LandR.verbose", TRUE) > 0)
     message(currentModule(sim), ": using dataPath '", dPath, "'.")
 
-  ## use lcc proj to match kNN (previously used aea)
+  #mod$prj <- paste("+proj=aea +lat_1=47.5 +lat_2=54.5 +lat_0=0 +lon_0=-113",
+  #                 "+x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs +ellps=GRS80 +towgs84=0,0,0")
   mod$prj <- paste("+proj=lcc +lat_1=49 +lat_2=77 +lat_0=0 +lon_0=-95",
                    "+x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 
@@ -134,14 +135,16 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
                                 studyArea = west,
                                 filename2 = NULL,
                                 userTags = c("stable", currentModule(sim), "NorthAmericanBoreal")) %>%
-      as("Spatial")
+      as("Spatial") %>%
+      aggregate() %>%
+      spatialEco::remove.holes()
   }
 
   ## stand age map
   if (!suppliedElsewhere("standAgeMap", sim)) {
     sim$standAgeMap <- amc::loadkNNageMap(path = dPath,
                                           url = na.omit(extractURL("standAgeMap")),
-                                          studyArea = sim$studyArea,
+                                          studyArea = sim$studyAreaLarge,
                                           userTags = c("stable", currentModule(sim)))
     sim$standAgeMap[] <- asInteger(sim$standAgeMap[])
   }
@@ -210,7 +213,7 @@ Init <- function(sim) {
 
     sim$massAttacksMap <- Cache(crop, x = allMaps, y = sim$studyAreaLarge) %>% stack()
   } else {
-    ## TODO: avoid reprojecting raster (lossy)
+    ## TODO: avoid reprojecting raster (lossy) -- e.g., by building rasters from polygons initially in correct projection
     sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames)
   }
 
