@@ -37,7 +37,8 @@ defineModule(sim, list(
                  #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La/view?usp=sharing"), ## BC+AB
                  sourceURL = "https://drive.google.com/file/d/1i4wRPjGDpaBOL6gs7FB9bQ9qqCTUyybw/view?usp=sharing"), ## AB only
     expectsInput("rasterToMatch", "RasterLayer",
-                 desc = "if not supplied, will default to standAgeMap", # TODO: description needed
+                 desc = paste("Template raster to which all maps will be cropped and reprojected.",
+                              "If not supplied, will default to standAgeMap."),
                  sourceURL = NA),
     expectsInput("standAgeMap", "RasterLayer",
                  desc = "stand age map in study area, default is Canada national stand age map",
@@ -46,10 +47,10 @@ defineModule(sim, list(
                                     "2001-attributes_attributs-2001/",
                                     "NFI_MODIS250m_2001_kNN_Structure_Stand_Age_v1.tif")),
     expectsInput("studyArea", "SpatialPolygons",
-                 desc = "The study area to which all maps will be cropped and reprojected.",
+                 desc = "The study area.",
                  sourceURL = NA),
     expectsInput("studyAreaLarge", "SpatialPolygons",
-                 desc = "The larger study area to use for spread parameter estimation.", ## TODO: better desc needed
+                 desc = "The area to use for spread parameter estimation.",
                  sourceURL = NA)
   ),
   outputObjects = bind_rows(
@@ -75,21 +76,17 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
       sim <- Init(sim)
 
       # schedule future event(s)
-      sim <- scheduleEvent(sim, P(sim)$.plotInitialTime,
-                           "mpbMassAttacksData", "plot", .last() - 1)
-      sim <- scheduleEvent(sim, P(sim)$.saveInitialTime,
-                           "mpbMassAttacksData", "save", .last())
+      sim <- scheduleEvent(sim, P(sim)$.plotInitialTime, "mpbMassAttacksData", "plot", .last() - 1)
+      sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "mpbMassAttacksData", "save", .last())
     },
     "plot" = {
-      # ! ----- EDIT BELOW ----- ! #
-      # do stuff for this event
-      #Plot(sim$massAttacksMap)
+      Plot(sim$currentAttacks)
+      Plot(sim$studyArea, addTo = "sim$currentAttacks", gp = gpar(col = "black", fill = 0),
+           title = "")
+      Plot(sim$studyAreaLarge, addTo = "sim$currentAttacks", gp = gpar(col = "black", fill = 0),
+           title = "")
 
-      # schedule future event(s)
-      sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotInterval,
-                           "mpbMassAttacksData", "plot", .last() - 1)
-
-      # ! ----- STOP EDITING ----- ! #
+      sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotInterval, "mpbMassAttacksData", "plot", .last() - 1)
     },
     warning(paste("Undefined event type: '", events(sim)[1, "eventType", with = FALSE],
                   "' in module '", events(sim)[1, "moduleName", with = FALSE], "'", sep = ""))
@@ -158,11 +155,7 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 }
 
 ## event functions
-#   - follow the naming convention `modulenameEventtype()`;
-#   - `modulenameInit()` function is required for initiliazation;
-#   - keep event functions short and clean, modularize by calling subroutines from section below.
 
-### template initilization
 Init <- function(sim) {
   ## MPB data for 2008 onward (NOTE: missing 1999 and 2000)
   ## TODO: incorporate code from MPB_maps.R to create the raster layers
@@ -203,25 +196,17 @@ Init <- function(sim) {
                     userTags = c("stable", currentModule(sim)))
 
   allMaps <- stack(fname) %>% setNames(layerNames)
+  toDrop <- which(grepl(paste0(1998:(start(sim)-1), collapse = "|"), layerNames))
+  allMaps <- dropLayer(allMaps, toDrop) ## drop layers that won't be used
 
-  if (identical(sf::st_crs(allMaps), sf::st_crs(sim$studyAreaLarge))) {
-    ## TODO: sf simplifies the proj4string of 'allMap', so although they are the
-    ## same they aren't identical, but raster and sp will throw warnings if they
-    ## aren't, so force them to be...
-    if (!identical(proj4string(allMaps), proj4string(sim$studyAreaLarge)))
-      proj4string(allMaps) <- proj4string(sim$studyAreaLarge)
-
-    sim$massAttacksMap <- Cache(crop, x = allMaps, y = sim$studyAreaLarge) %>% stack()
-  } else {
-    ## TODO: avoid reprojecting raster (lossy) -- e.g., by building rasters from polygons initially in correct projection
-    sim$massAttacksMap <- Cache(amc::cropReproj, allMaps, sim$studyAreaLarge, layerNames)
-  }
+  sim$massAttacksMap <- Cache(postProcess, x = allMaps, filename2 = NULL, overwrite = TRUE,
+                              rasterToMatch = sim$rasterToMatch) %>%
+    stack()
 
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
   sim$currentAttacks <- sim$massAttacksMap[[paste0("X", start(sim))]]
   setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
-  sim$currentAttacks <- Cache(raster::resample, sim$currentAttacks, sim$pineMap, method = "ngb")
 
   ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
   sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$currentAttacks),
