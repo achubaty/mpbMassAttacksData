@@ -13,6 +13,7 @@ defineModule(sim, list(
   timeframe = as.POSIXlt(c(NA, NA)),
   timeunit = "year",
   citation = list(),
+  documentation = list(),
   reqdPkgs = list("achubaty/amc@development", "data.table", "magrittr", "quickPlot",
                   "raster", "RColorBrewer", "reproducible", "sf", "sp", "spatialEco"),
   parameters = rbind(
