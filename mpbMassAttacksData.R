@@ -32,7 +32,7 @@ defineModule(sim, list(
     defineParameter(".useCache", "logical", FALSE, NA, NA,
                     "Should this entire module be run with caching activated?")
   ),
-  inputObjects = bind_rows(
+  inputObjects = bindrows(
     expectsInput("massAttacksMapFile", "RasterLayer",
                  desc = "temporary pre-build raster stack of mpb attacks", ## TODO: incorporate creation of this into the module
                  #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La/view?usp=sharing"), ## BC+AB
@@ -54,7 +54,7 @@ defineModule(sim, list(
                  desc = "The area to use for spread parameter estimation.",
                  sourceURL = NA)
   ),
-  outputObjects = bind_rows(
+  outputObjects = bindrows(
     createsOutput("currentAttacks", "RasterLayer",
                   desc = "Current year MPB attack maps (number of red attacked trees).",
                   sourceURL = NA),
