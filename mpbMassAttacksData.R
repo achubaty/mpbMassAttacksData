@@ -177,13 +177,15 @@ Init <- function(sim) {
                     overwrite = TRUE,
                     userTags = c("stable", currentModule(sim)))
 
-  allMaps <- stack(fname) %>% setNames(layerNames)
+  allMaps <- raster::stack(fname) %>% setNames(layerNames)
   toDrop <- which(grepl(paste0(1998:(start(sim)-1), collapse = "|"), layerNames))
   allMaps <- dropLayer(allMaps, toDrop) ## drop layers that won't be used
 
-  sim$massAttacksMap <- Cache(postProcess, x = allMaps, filename2 = NULL, overwrite = TRUE,
+  sim$massAttacksMap <- Cache(postProcess, x = allMaps, filename2 = NULL,
+                              overwrite = TRUE,
                               rasterToMatch = sim$rasterToMatch) %>%
-    stack()
+    raster::stack()
+  names(sim$massAttacksMap) <- names(allMaps)
 
   setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
