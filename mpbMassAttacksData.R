@@ -37,8 +37,8 @@ defineModule(sim, list(
   inputObjects = bindrows(
     expectsInput("massAttacksMapFile", "RasterLayer",
                  desc = "temporary pre-build raster stack of mpb attacks", ## TODO: incorporate creation of this into the module
-                 #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La/view?usp=sharing"), ## BC+AB
-                 sourceURL = "https://drive.google.com/file/d/1i4wRPjGDpaBOL6gs7FB9bQ9qqCTUyybw/view?usp=sharing"), ## AB only
+                 #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La"), ## BC+AB
+                 sourceURL = "https://drive.google.com/file/d/18xd6Bu8tAecb_Lm3icLJfJ7XqL4m3wf2"), ## AB only
     expectsInput("rasterToMatch", "RasterLayer",
                  desc = paste("Template raster to which all maps will be cropped and reprojected.",
                               "If not supplied, will default to standAgeMap."),
