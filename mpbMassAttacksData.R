@@ -59,6 +59,9 @@ defineModule(sim, list(
                   sourceURL = NA),
     createsOutput("massAttacksMap", "RasterStack",
                   desc = "Historical MPB attack maps (number of red attacked trees).",
+                  sourceURL = NA),
+    createsOutput("massAttacksDT", "data.table",
+                  desc = "same data (though presence only) as currentAttacks, but in data.table format. Colnames: ID for pixelID and ATKTREES for number of attacked trees",
                   sourceURL = NA)
   )
 ))
