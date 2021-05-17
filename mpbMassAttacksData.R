@@ -59,6 +59,9 @@ defineModule(sim, list(
                   sourceURL = NA),
     createsOutput("massAttacksMap", "RasterStack",
                   desc = "Historical MPB attack maps (number of red attacked trees).",
+                  sourceURL = NA),
+    createsOutput("massAttacksDT", "data.table",
+                  desc = "same data (though presence only) as currentAttacks, but in data.table format. Colnames: ID for pixelID and ATKTREES for number of attacked trees",
                   sourceURL = NA)
   )
 ))
@@ -165,30 +168,18 @@ Init <- function(sim) {
   #   stack() %>%
   #   set_names(layerNames)
 
-  ## workaround broken prepInputs by downloading only; use Alex's code to load etc.
-  fileInfo <- Cache(preProcess,
-                    targetFile = basename(fname),
-                    archive = NULL,
-                    destinationPath = asPath(dataPath(sim)),
+  sim$massAttacksMap <- Cache(preProcessMPBAttacks,
+                    fname = fname,
+                    rasterToMatch = sim$rasterToMatch,
+                    dataPath = dataPath(sim),
                     url = extractURL("massAttacksMapFile"),
                     fun = "raster::stack",
                     method = "bilinear",
                     datatype = "FLT4S",
                     filename2 = NULL,
-                    overwrite = TRUE,
+                    layerNames = layerNames,
+                    overwrite = TRUE, startTime = start(sim),
                     userTags = c("stable", currentModule(sim)))
-
-  allMaps <- raster::stack(fname) %>% setNames(layerNames)
-  toDrop <- which(grepl(paste0(1998:(start(sim)-1), collapse = "|"), layerNames))
-  allMaps <- dropLayer(allMaps, toDrop) ## drop layers that won't be used
-
-  sim$massAttacksMap <- Cache(postProcess, x = allMaps, filename2 = NULL,
-                              overwrite = TRUE,
-                              rasterToMatch = sim$rasterToMatch) %>%
-    raster::stack()
-  names(sim$massAttacksMap) <- names(allMaps)
-
-  setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
   sim$currentAttacks <- sim$massAttacksMap[[paste0("X", start(sim))]]
   setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
@@ -200,4 +191,25 @@ Init <- function(sim) {
   sim$massAttacksDT <- sim$massAttacksDT[ATKTREES > 0]
 
   return(invisible(sim))
+}
+
+
+preProcessMPBAttacks <- function(fname, rasterToMatch, dataPath, layerNames, userTags, startTime, ...) {
+  fileInfo <- Cache(preProcess,
+                    targetFile = basename(fname),
+                    destinationPath = asPath(dataPath),
+                    userTags = userTags, ...)
+
+  allMaps <- raster::stack(fname) %>% setNames(layerNames)
+  toDrop <- which(grepl(paste0(1998:(startTime-1), collapse = "|"), layerNames))
+  allMaps <- dropLayer(allMaps, toDrop) ## drop layers that won't be used
+
+  massAttacksMap <- Cache(postProcess, x = allMaps, filename2 = NULL,
+                          overwrite = TRUE,
+                          rasterToMatch = rasterToMatch) %>%
+    raster::stack()
+  names(massAttacksMap) <- names(allMaps)
+
+  setColors(massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(massAttacksMap))
+  massAttacksMap
 }
