@@ -145,7 +145,8 @@ Init <- function(sim) {
   # load each of the annual rasters and stack them
   layerNames <- paste0("X", c(1998, 2001:2016))
   #fname <- file.path(dataPath(sim), "mpb_bcab_boreal_1998-2016.tif")
-  fname <- file.path(dataPath(sim), "MPB_AB_pnts_1998-2016.tif")
+  #fname <- file.path(dataPath(sim), "MPB_AB_pnts_1998-2016.tif")
+  fname <- file.path(dataPath(sim), "MPB_AB_pnts_2001-2019.tif")
 
   ## TODO: prepInputs can't handle a stack...at all...it returns a brick of all NA values
   # sim$massAttacksMap <- Cache(prepInputs,
