@@ -16,8 +16,9 @@ defineModule(sim, list(
   documentation = list(),
   reqdPkgs = list("achubaty/amc@development", "data.table",
                   "PredictiveEcology/LandR@development",
+                  "PredictiveEcology/reproducible@customFun (>= 1.2.6.9018)",
                   "magrittr", "quickPlot",
-                  "raster", "RColorBrewer", "reproducible", "sf", "sp", "spatialEco"),
+                  "raster", "RColorBrewer", "sf", "sp", "spatialEco"),
   parameters = rbind(
     defineParameter(".maxMemory", "numeric", 1e+9, NA, NA,
                     "Used to set the 'maxmemory' raster option. See '?rasterOptions'."),
