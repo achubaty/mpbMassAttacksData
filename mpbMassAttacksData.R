@@ -142,44 +142,25 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 ## event functions
 
 Init <- function(sim) {
-  ## MPB data for 2008 onward (NOTE: missing 1999 and 2000)
   ## TODO: incorporate code from MPB_maps.R to create the raster layers
 
-  # load each of the annual rasters and stack them
-  layerNames <- paste0("X", c(1998, 2001:2016))
-  #fname <- file.path(dataPath(sim), "mpb_bcab_boreal_1998-2016.tif")
-  #fname <- file.path(dataPath(sim), "MPB_AB_pnts_1998-2016.tif")
-  fname <- file.path(dataPath(sim), "MPB_AB_pnts_2001-2019.tif")
-
-  ## TODO: prepInputs can't handle a stack...at all...it returns a brick of all NA values
-  # sim$massAttacksMap <- Cache(prepInputs,
-  #                             targetFile = basename(fname),
-  #                             archive = NULL,
-  #                             destinationPath = asPath(dataPath(sim)),
-  #                             url = extractURL("massAttacksMapFile"),
-  #                             fun = "raster::stack",
-  #                             studyArea = sim$studyAreaLarge,
-  #                             rasterToMatch = sim$rasterToMatch,
-  #                             method = "bilinear",
-  #                             datatype = "FLT4S",
-  #                             filename2 = NULL,
-  #                             overwrite = TRUE,
-  #                             userTags = c("stable", currentModule(sim))) %>%
-  #   stack() %>%
-  #   set_names(layerNames)
-
-  sim$massAttacksMap <- Cache(preProcessMPBAttacks,
-                    fname = fname,
-                    rasterToMatch = sim$rasterToMatch,
-                    dataPath = dataPath(sim),
-                    url = extractURL("massAttacksMapFile"),
-                    fun = "raster::stack",
-                    method = "bilinear",
-                    datatype = "FLT4S",
-                    filename2 = NULL,
-                    layerNames = layerNames,
-                    overwrite = TRUE, startTime = start(sim),
-                    userTags = c("stable", currentModule(sim)))
+  sim$massAttacksMap <- Cache(prepInputs,
+                              url = extractURL("massAttacksMapFile"),
+                              destinationPath = asPath(dataPath(sim)),
+                              # Custom function for loading to R, with 1 custom arg + function itself
+                              fun = quote(
+                                loadRasterStackTruncateYears(targetFilePath, startTime = startTime)
+                              ),
+                              loadRasterStackTruncateYears = loadRasterStackTruncateYears,
+                              startTime = start(sim),
+                              # For postProcessing
+                              rasterToMatch = sim$rasterToMatch,
+                              filename2 = NULL,
+                              method = "bilinear",
+                              datatype = "FLT4S",
+                              overwrite = TRUE,
+                              userTags = c("stable", currentModule(sim)))
+  setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(massAttacksMap))
 
   sim$currentAttacks <- sim$massAttacksMap[[paste0("X", start(sim))]]
   setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
@@ -193,23 +174,15 @@ Init <- function(sim) {
   return(invisible(sim))
 }
 
-
-preProcessMPBAttacks <- function(fname, rasterToMatch, dataPath, layerNames, userTags, startTime, ...) {
-  fileInfo <- Cache(preProcess,
-                    targetFile = basename(fname),
-                    destinationPath = asPath(dataPath),
-                    userTags = userTags, ...)
-
+loadRasterStackTruncateYears <- function(fname, startTime) {
+  from <- gsub("^.*_([[:digit:]]{4,4})-([[:digit:]]{4,4}).*", "\\1-\\2", fname)
+  years <- as.numeric(strsplit(from, split = "-")[[1]])
+  years <- seq(years[1], years[2])
+  layerNames <- paste0("X", years)
   allMaps <- raster::stack(fname) %>% setNames(layerNames)
-  toDrop <- which(grepl(paste0(1998:(startTime-1), collapse = "|"), layerNames))
+  toDrop <- seq(which(grepl(startTime-1, layerNames)))
+  message("Removing years ", paste(years[toDrop], collapse = ", "),
+          " as these occur prior to start(sim)")
   allMaps <- dropLayer(allMaps, toDrop) ## drop layers that won't be used
-
-  massAttacksMap <- Cache(postProcess, x = allMaps, filename2 = NULL,
-                          overwrite = TRUE,
-                          rasterToMatch = rasterToMatch) %>%
-    raster::stack()
-  names(massAttacksMap) <- names(allMaps)
-
-  setColors(massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(massAttacksMap))
-  massAttacksMap
+  allMaps
 }
