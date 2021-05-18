@@ -161,7 +161,7 @@ Init <- function(sim) {
                               datatype = "FLT4S",
                               overwrite = TRUE,
                               userTags = c("stable", currentModule(sim)))
-  setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(massAttacksMap))
+  setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
 
   sim$currentAttacks <- sim$massAttacksMap[[paste0("X", start(sim))]]
   setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
