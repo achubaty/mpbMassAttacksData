@@ -16,7 +16,7 @@ defineModule(sim, list(
   documentation = list(),
   reqdPkgs = list("achubaty/amc@development", "archive", "data.table",
                   "PredictiveEcology/LandR@development",
-                  "PredictiveEcology/reproducible@customFun (>= 1.2.6.9018)",
+                  "PredictiveEcology/reproducible@gdb_archiveNA (>= 1.2.6.9019)",
                   "magrittr", "quickPlot",
                   "raster", "RColorBrewer", "sf", "sp", "spatialEco"),
   parameters = rbind(
