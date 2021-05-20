@@ -143,19 +143,15 @@ Init <- function(sim) {
   ## TODO: incorporate code from MPB_maps.R to create the raster layers
 
   datasets <- c(
-    "https://drive.google.com/file/d/11YoAxkHzWNsNGkNtoe5ph5BdT5xXUoGg/view?usp=sharing",  # 1970s to 2018
-    "https://drive.google.com/file/d/1vhSLJf03KTi0Oeec_pSiwK7EQZYd_PlF/view?usp=sharing", # 2019
-    "https://drive.google.com/file/d/1S5Lw5g5ACcTyhf8kwR7sqwPzGOCjfpwB/view?usp=sharing" # 2020
+    pre2019 = "https://drive.google.com/file/d/11YoAxkHzWNsNGkNtoe5ph5BdT5xXUoGg/view?usp=sharing",  # 1970s to 2018
+    Y2019 = "https://drive.google.com/file/d/1vhSLJf03KTi0Oeec_pSiwK7EQZYd_PlF/view?usp=sharing", # 2019
+    Y2020 = "https://drive.google.com/file/d/1S5Lw5g5ACcTyhf8kwR7sqwPzGOCjfpwB/view?usp=sharing" # 2020
   )
-  out <- lapply(datasets, function(url) {
-    prepInputsMPB_ABdata(url = url,
-                         startYear = start(sim),
-                         rasterToMatch = sim$rasterToMatch,
-                         disaggregateFactor = 10)
-  })
+  sim$massAttacksMap <- Cache(prepInputsMPB_ABdata, url = datasets,
+                              startYear = start(sim),
+                              rasterToMatch = sim$rasterToMatch,
+                              disaggregateFactor = 10)
 
-
-  sim$massAttacksMap <- Reduce(modifyList, out)
 
   annualAbundances <- lapply(sim$massAttacksMap, function(x) round(sum(x[], na.rm = TRUE), 0))
   sim$massAttacksMap <- raster::stack(sim$massAttacksMap)
@@ -187,107 +183,110 @@ loadRasterStackTruncateYears <- function(fname, startTime) {
   allMaps
 }
 
-prepInputsMPB_ABdata <- function(rasterToMatch, startYear, disaggregateFactor = 10, ...) {
-  fileInfo <- preProcess(..., archive = NA)
-  dirForExtract <- file.path(dirname(fileInfo$targetFilePath), rndstr(1))
-  out <- archive::archive_extract(fileInfo$targetFilePath,
-                                  dir = dirForExtract)
+prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFactor = 10, ...) {
 
-  gdbName <- unique(dirname(out$path))[1]
-  origDir <- setwd(dirForExtract)
-  on.exit(setwd(origDir))
-  layerNames <- sf::st_layers(gdbName)
-  yrsAvail <- substr(layerNames$name, start = nchar("ab_0ufohn") + 1, stop = 13)
-  yrsAvail <- gsub(".$", "", yrsAvail)
-  layerNames$year <- yrsAvail
+  outOuter <- lapply(urls, function(url)  {
+    fileInfo <- preProcess(url = url, ..., archive = NA)
+    dirForExtract <- file.path(dirname(fileInfo$targetFilePath), rndstr(1))
+    out <- archive::archive_extract(fileInfo$targetFilePath,
+                                    dir = dirForExtract)
 
-  # Years are 2 digit -- so numbers above 70 are in 20th C; below 30 are 21st C.
-  yrs <- ifelse(as.numeric(yrsAvail) > 50, paste0(19, yrsAvail), paste0(20, yrsAvail))
-  yrs <- as.integer(yrs)
-  layerNames$yearNum <- yrs
-  yearsToDo <- startYear:(max(yrs))
-  lays <- as.data.table(sapply(layerNames, function(x) x))
-  rtmTemplate <- raster::raster(rasterToMatch)
-  rtmCRS <- st_crs(rasterToMatch)
-  if (disaggregateFactor > 1)
-    rasterToMatch <- raster(raster::disaggregate(rtmTemplate,
-                                                 fact = disaggregateFactor))
+    gdbName <- unique(dirname(out$path))[1]
+    origDir <- setwd(dirForExtract)
+    on.exit(setwd(origDir))
+    layerNames <- sf::st_layers(gdbName)
+    yrsAvail <- substr(layerNames$name, start = nchar("ab_0ufohn") + 1, stop = 13)
+    yrsAvail <- gsub(".$", "", yrsAvail)
+    layerNames$year <- yrsAvail
 
-  out <- list()
-  for (ytd in yearsToDo) {
-    yrsIn <- lays[yearNum == ytd]$name
-    names(yrsIn) <- yrsIn
-    if (NROW(yrsIn)) {
-      pointsAndPolys <- Cache(lapply, yrsIn, function(y) {
-        message(crayon::green(y))
-        co <- capture.output(mpbMap <- sf::st_read(gdbName, layer = y))
-        mpbMap <- st_transform(mpbMap, rtmCRS)
-        mpbMap <- fixErrors(mpbMap, useCache = FALSE)
-        if (NROW(mpbMap)) {
-          if (all(sf::st_is(mpbMap, "POINT"))) {
-            mpbRaster <- rtmTemplate
-            mpbMapSp <- sf::as_Spatial(mpbMap)
-            pixels <- cellFromXY(rtmTemplate, mpbMapSp)
-            whNA <- is.na(pixels)
-            colnam <- grep("num_trees", names(mpbMapSp), ignore.case = TRUE, value = TRUE)
-            mpbMapSpOnRTM <- mpbMapSp[!whNA,]
-            pixelsOnRTM <- cellFromXY(rtmTemplate, mpbMapSpOnRTM)
-            # pixels <- which(pixels)[!whNA]
-            dt1 <- data.table(num_trees = mpbMapSpOnRTM[[colnam]], pixel = pixelsOnRTM)
-            dt1 <- dt1[, list(num_trees = sum(num_trees)), by = "pixel" ]
-            message(crayon::green(paste0("  There are total ", sum(dt1$num_trees),
-                                         " attacked trees on map due to pixels")))
-            mpbRaster[dt1$pixel] <- dt1$num_trees
-          } else {
-            mpbMap <- st_cast(mpbMap, "MULTIPOLYGON")
-            rrr <- st_crop(mpbMap, rasterToMatch)
-            rrr$area_new <- sf::st_area(rrr)
-            totAbund <- round(sum(abundance(rrr$area_new/1e4, rrr$POLY_PERC, avgDensity = 1125)), 0)
-            message(crayon::green(paste0("  There are total ", totAbund,
-                                         " attacked trees on map due to polygons")))
-            # mpbRaster2 <- fasterize::fasterize(mpbMap, rtmTemplate, field = "POLY_PERC")
-            mpbRaster <- fasterize::fasterize(mpbMap, rasterToMatch, field = "POLY_PERC")
-            whNoNA <- which(!is.na(mpbRaster[]))
-            mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA])
-            rasterizationDiff <- abs(sum(mpbRaster[], na.rm = T) - as.numeric(totAbund))/ length(whNoNA)
-            mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
-            if (rasterizationDiff > 0.001) {
-              message(crayon::red(mess))
-              warning(mess)
+    # Years are 2 digit -- so numbers above 70 are in 20th C; below 30 are 21st C.
+    yrs <- ifelse(as.numeric(yrsAvail) > 50, paste0(19, yrsAvail), paste0(20, yrsAvail))
+    yrs <- as.integer(yrs)
+    layerNames$yearNum <- yrs
+    yearsToDo <- startYear:(max(yrs))
+    lays <- as.data.table(sapply(layerNames, function(x) x))
+    rtmTemplate <- raster::raster(rasterToMatch)
+    rtmCRS <- st_crs(rasterToMatch)
+    if (disaggregateFactor > 1)
+      rasterToMatch <- raster(raster::disaggregate(rtmTemplate,
+                                                   fact = disaggregateFactor))
+
+    out <- list()
+    for (ytd in yearsToDo) {
+      yrsIn <- lays[yearNum == ytd]$name
+      names(yrsIn) <- yrsIn
+      if (NROW(yrsIn)) {
+        pointsAndPolys <- Cache(lapply, yrsIn, function(y) {
+          message(crayon::green(y))
+          co <- capture.output(mpbMap <- sf::st_read(gdbName, layer = y))
+          mpbMap <- st_transform(mpbMap, rtmCRS)
+          mpbMap <- fixErrors(mpbMap, useCache = FALSE)
+          if (NROW(mpbMap)) {
+            if (all(sf::st_is(mpbMap, "POINT"))) {
+              mpbRaster <- rtmTemplate
+              mpbMapSp <- sf::as_Spatial(mpbMap)
+              pixels <- cellFromXY(rtmTemplate, mpbMapSp)
+              whNA <- is.na(pixels)
+              colnam <- grep("num_trees", names(mpbMapSp), ignore.case = TRUE, value = TRUE)
+              mpbMapSpOnRTM <- mpbMapSp[!whNA,]
+              pixelsOnRTM <- cellFromXY(rtmTemplate, mpbMapSpOnRTM)
+              # pixels <- which(pixels)[!whNA]
+              dt1 <- data.table(num_trees = mpbMapSpOnRTM[[colnam]], pixel = pixelsOnRTM)
+              dt1 <- dt1[, list(num_trees = sum(num_trees)), by = "pixel" ]
+              message(crayon::green(paste0("  There are total ", sum(dt1$num_trees),
+                                           " attacked trees on map due to pixels")))
+              mpbRaster[dt1$pixel] <- dt1$num_trees
             } else {
-              message(crayon::green(mess))
+              mpbMap <- st_cast(mpbMap, "MULTIPOLYGON")
+              rrr <- st_crop(mpbMap, rasterToMatch)
+              rrr$area_new <- sf::st_area(rrr)
+              totAbund <- round(sum(abundance(rrr$area_new/1e4, rrr$POLY_PERC, avgDensity = 1125)), 0)
+              message(crayon::green(paste0("  There are total ", totAbund,
+                                           " attacked trees on map due to polygons")))
+              # mpbRaster2 <- fasterize::fasterize(mpbMap, rtmTemplate, field = "POLY_PERC")
+              mpbRaster <- fasterize::fasterize(mpbMap, rasterToMatch, field = "POLY_PERC")
+              whNoNA <- which(!is.na(mpbRaster[]))
+              mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA])
+              rasterizationDiff <- abs(sum(mpbRaster[], na.rm = T) - as.numeric(totAbund))/ length(whNoNA)
+              mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
+              if (rasterizationDiff > 0.001) {
+                message(crayon::red(mess))
+                warning(mess)
+              } else {
+                message(crayon::green(mess))
+              }
+
+              if (disaggregateFactor > 1) {
+
+                # data.table way
+                mpbRasterDT <- aggregateSum(mpbRaster, rtmTemplate)
+
+                # Raster package way is WAY TOO SLOW
+                # mpbRasterSmall <- raster::aggregate(mpbRaster, fact = disaggregateFactor, fun = sum)
+                mpbRaster <- mpbRasterDT
+              }
             }
-
-            if (disaggregateFactor > 1) {
-
-              # data.table way
-              mpbRasterDT <- aggregateSum(mpbRaster, rtmTemplate)
-
-              # Raster package way is WAY TOO SLOW
-              # mpbRasterSmall <- raster::aggregate(mpbRaster, fact = disaggregateFactor, fun = sum)
-              mpbRaster <- mpbRasterDT
-            }
+          } else {
+            mpbRaster <- NULL
           }
+          mpbRaster
+        })
+        pointsAndPolys <- pointsAndPolys[!sapply(pointsAndPolys, is.null)]
+        if (length(pointsAndPolys) > 1) {
+          pointsAndPolys <- raster::stack(pointsAndPolys)
+          pointsAndPolys <- calc(pointsAndPolys, sum, na.rm = TRUE)
         } else {
-          mpbRaster <- NULL
+          pointsAndPolys <- pointsAndPolys[[1]]
         }
-        mpbRaster
-      })
-      pointsAndPolys <- pointsAndPolys[!sapply(pointsAndPolys, is.null)]
-      if (length(pointsAndPolys) > 1) {
-        pointsAndPolys <- raster::stack(pointsAndPolys)
-        pointsAndPolys <- calc(pointsAndPolys, sum, na.rm = TRUE)
-      } else {
-        pointsAndPolys <- pointsAndPolys[[1]]
+        pointsAndPolys[pointsAndPolys[]==0] <- NA
+        # aasSmall <- trim(aas)
+        setColors(pointsAndPolys) <- c("Reds")
+        out[[paste0("X",ytd)]] <- pointsAndPolys
       }
-      pointsAndPolys[pointsAndPolys[]==0] <- NA
-      # aasSmall <- trim(aas)
-      setColors(pointsAndPolys) <- c("Reds")
-      out[[paste0("X",ytd)]] <- pointsAndPolys
     }
-  }
-  out
-
+    out
+  })
+  Reduce(modifyList, outOuter)
 }
 
 abundance <- function(areaPerUnit, percentPerUnit, avgDensity = 1125) {
