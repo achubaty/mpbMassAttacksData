@@ -14,7 +14,7 @@ defineModule(sim, list(
   timeunit = "year",
   citation = list(),
   documentation = list(),
-  reqdPkgs = list("achubaty/amc@development", "archive", "data.table",
+  reqdPkgs = list("achubaty/amc@development", "jimhester/archive", "data.table",
                   "PredictiveEcology/LandR@development",
                   "PredictiveEcology/reproducible@gdb_archiveNA (>= 1.2.6.9019)",
                   "magrittr", "quickPlot",
@@ -176,7 +176,7 @@ loadRasterStackTruncateYears <- function(fname, startTime) {
   years <- seq(years[1], years[2])
   layerNames <- paste0("X", years)
   allMaps <- raster::stack(fname) %>% setNames(layerNames)
-  toDrop <- seq(which(grepl(startTime-1, layerNames)))
+  toDrop <- seq(which(grepl(startTime - 1, layerNames)))
   message("Removing years ", paste(years[toDrop], collapse = ", "),
           " as these occur prior to start(sim)")
   allMaps <- dropLayer(allMaps, toDrop) ## drop layers that won't be used
@@ -188,8 +188,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFac
   outOuter <- lapply(urls, function(url)  {
     fileInfo <- preProcess(url = url, ..., archive = NA)
     dirForExtract <- file.path(dirname(fileInfo$targetFilePath), rndstr(1))
-    out <- archive::archive_extract(fileInfo$targetFilePath,
-                                    dir = dirForExtract)
+    out <- archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract)
 
     gdbName <- unique(dirname(out$path))[1]
     origDir <- setwd(dirForExtract)
