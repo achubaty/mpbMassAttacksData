@@ -97,6 +97,7 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 
 .inputObjects <- function(sim) {
   cacheTags <- c(currentModule(sim), "function:.inputObjects")
+  cPath <- cachePath(sim)
   dPath <- asPath(getOption("reproducible.destinationPath", dataPath(sim)), 1)
   if (getOption("LandR.verbose", TRUE) > 0)
     message(currentModule(sim), ": using dataPath '", dPath, "'.")
@@ -108,7 +109,8 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
 
   ## load study area
   if (!suppliedElsewhere("studyArea")) {
-    sim$studyArea <- amc::loadStudyArea(dataPath(sim), "studyArea.kml", mod$prj)
+    sim$studyArea <- mpbStudyArea(ecoregions = c(112, 120, 122, 124, 126), mod$prj,
+                                  cPath, dPath)
   }
 
   ## raster to match
@@ -117,10 +119,9 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
       LandR::prepInputsLCC,
       year = 2005,
       destinationPath = dPath,
-      studyArea = sim$studyArea
+      studyArea = sf::as_Spatial(sim$studyArea)
     )
   }
-
   ## stand age map
   if (!suppliedElsewhere("standAgeMap", sim)) {
     sim$standAgeMap <- LandR::prepInputsStandAgeMap(
