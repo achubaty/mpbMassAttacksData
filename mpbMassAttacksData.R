@@ -259,7 +259,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFac
               if (disaggregateFactor > 1) {
 
                 # data.table way
-                mpbRasterDT <- aggregateSum(mpbRaster, rtmTemplate)
+                mpbRasterDT <- aggregateRasByDT(mpbRaster, rtmTemplate, fn = sum)
 
                 # Raster package way is WAY TOO SLOW
                 # mpbRasterSmall <- raster::aggregate(mpbRaster, fact = disaggregateFactor, fun = sum)
@@ -293,14 +293,14 @@ abundance <- function(areaPerUnit, percentPerUnit, avgDensity = 1125) {
   areaPerUnit*avgDensity*percentPerUnit/100
 }
 
-aggregateSum <- function(ras, newRas) {
+aggregateRasByDT <- function(ras, newRas, fn = sum) {
   whNonNA <- which(!is.na(ras[]))
   rc2 <- rowColFromCell(ras, whNonNA)
   if (!all(((res(newRas)/res(ras)) %% 1) == 0))
     stop("The resolutions of the original raster and new raster are not integer multiples")
   disaggregateFactor <- unique(res(newRas)/res(ras))
   dt <- data.table(vals = ras[][whNonNA], ceiling(rc2 / disaggregateFactor))
-  dt2 <- dt[, list(vals = sum(vals)), by = c("row", "col")]
+  dt2 <- dt[, list(vals = fn(vals)), by = c("row", "col")]
   pixes <- cellFromRowCol(newRas, row = dt2$row, col = dt2$col)
   newRasOut <- raster(newRas)
   newRasOut[pixes] <- dt2$vals
