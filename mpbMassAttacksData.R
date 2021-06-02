@@ -17,7 +17,7 @@ defineModule(sim, list(
   reqdPkgs = list("achubaty/amc@development", "jimhester/archive", "data.table",
                   "PredictiveEcology/LandR@development",
                   "PredictiveEcology/reproducible@gdb_archiveNA (>= 1.2.6.9019)",
-                  "magrittr", "quickPlot",
+                  "magrittr", "quickPlot", "PredictiveEcology/mpbutils (>= 0.1.2)",
                   "raster", "RColorBrewer", "sf", "sp", "spatialEco"),
   parameters = rbind(
     defineParameter(".maxMemory", "numeric", 1e+9, NA, NA,
