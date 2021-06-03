@@ -151,6 +151,7 @@ Init <- function(sim) {
   sim$massAttacksMap <- Cache(prepInputsMPB_ABdata, url = datasets,
                               startYear = start(sim),
                               rasterToMatch = sim$rasterToMatch,
+                              maskWithRTM = TRUE,
                               disaggregateFactor = 10)
 
 
@@ -184,7 +185,8 @@ loadRasterStackTruncateYears <- function(fname, startTime) {
   allMaps
 }
 
-prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFactor = 10, ...) {
+prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFactor = 10,
+                                 maskWithRTM = TRUE, ...) {
 
   outOuter <- lapply(urls, function(url)  {
     fileInfo <- preProcess(url = url, ..., archive = NA)
@@ -206,6 +208,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFac
     yearsToDo <- startYear:(max(yrs))
     lays <- as.data.table(sapply(layerNames, function(x) x))
     rtmTemplate <- raster::raster(rasterToMatch)
+    rtmNAs <- which(is.na(rasterToMatch[]))
     rtmCRS <- st_crs(rasterToMatch)
     if (disaggregateFactor > 1)
       rasterToMatch <- raster(raster::disaggregate(rtmTemplate,
@@ -271,6 +274,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFac
           }
           mpbRaster
         })
+
         pointsAndPolys <- pointsAndPolys[!sapply(pointsAndPolys, is.null)]
         if (length(pointsAndPolys) > 1) {
           pointsAndPolys <- raster::stack(pointsAndPolys)
@@ -279,6 +283,8 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFac
           pointsAndPolys <- pointsAndPolys[[1]]
         }
         pointsAndPolys[pointsAndPolys[]==0] <- NA
+        if (isTRUE(maskWithRTM))
+          pointsAndPolys[rtmNAs] <- NA
         # aasSmall <- trim(aas)
         setColors(pointsAndPolys) <- c("Reds")
         out[[paste0("X",ytd)]] <- pointsAndPolys
