@@ -250,7 +250,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFac
               mpbRaster <- fasterize::fasterize(mpbMap, rasterToMatch, field = "POLY_PERC")
               whNoNA <- which(!is.na(mpbRaster[]))
               mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA])
-              rasterizationDiff <- abs(sum(mpbRaster[], na.rm = T) - as.numeric(totAbund))/ length(whNoNA)
+              rasterizationDiff <- abs(sum(mpbRaster[][whNoNA], na.rm = T) - as.numeric(totAbund))/ as.numeric(totAbund)
               mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
               if (rasterizationDiff > 0.001) {
                 message(crayon::red(mess))
