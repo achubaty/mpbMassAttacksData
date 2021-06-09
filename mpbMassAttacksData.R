@@ -36,7 +36,7 @@ defineModule(sim, list(
                     "Should this entire module be run with caching activated?")
   ),
   inputObjects = bindrows(
-    expectsInput("massAttacksMapFile", "RasterLayer",
+    expectsInput("massAttacksStackFile", "RasterStack",
                  desc = "temporary pre-build raster stack of mpb attacks", ## TODO: incorporate creation of this into the module
                  #sourceURL = "https://drive.google.com/file/d/1b5W835MPttLsVknVEg1CR_IrC_Nyz6La"), ## BC+AB
                  sourceURL = "https://drive.google.com/file/d/18xd6Bu8tAecb_Lm3icLJfJ7XqL4m3wf2"), ## AB only
@@ -57,7 +57,7 @@ defineModule(sim, list(
   outputObjects = bindrows(
     createsOutput("currentAttacks", "RasterLayer",
                   desc = "Current year MPB attack maps (number of red attacked trees)."),
-    createsOutput("massAttacksMap", "RasterStack",
+    createsOutput("massAttacksStack", "RasterStack",
                   desc = "Historical MPB attack maps (number of red attacked trees)."),
     createsOutput("massAttacksDT", "data.table",
                   desc = "same data (though presence only) as currentAttacks, but in data.table format. Colnames: ID for pixelID and ATKTREES for number of attacked trees")
@@ -148,19 +148,19 @@ Init <- function(sim) {
     Y2019 = "https://drive.google.com/file/d/1vhSLJf03KTi0Oeec_pSiwK7EQZYd_PlF/view?usp=sharing", # 2019
     Y2020 = "https://drive.google.com/file/d/1S5Lw5g5ACcTyhf8kwR7sqwPzGOCjfpwB/view?usp=sharing" # 2020
   )
-  sim$massAttacksMap <- Cache(prepInputsMPB_ABdata, url = datasets,
+  sim$massAttacksStack <- Cache(prepInputsMPB_ABdata, url = datasets,
                               startYear = start(sim),
                               rasterToMatch = sim$rasterToMatch,
                               maskWithRTM = TRUE,
                               disaggregateFactor = 10)
 
 
-  annualAbundances <- lapply(sim$massAttacksMap, function(x) round(sum(x[], na.rm = TRUE), 0))
-  sim$massAttacksMap <- raster::stack(sim$massAttacksMap)
+  annualAbundances <- lapply(sim$massAttacksStack, function(x) round(sum(x[], na.rm = TRUE), 0))
+  sim$massAttacksStack <- raster::stack(sim$massAttacksStack)
 
-  setColors(sim$massAttacksMap) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksMap))
+  setColors(sim$massAttacksStack) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksStack))
 
-  sim$currentAttacks <- sim$massAttacksMap[[paste0("X", start(sim))]]
+  sim$currentAttacks <- sim$massAttacksStack[[paste0("X", start(sim))]]
   setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
 
   ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
