@@ -55,12 +55,12 @@ defineModule(sim, list(
                  sourceURL = NA)
   ),
   outputObjects = bindrows(
-    createsOutput("currentAttacks", "RasterLayer",
-                  desc = "Current year MPB attack maps (number of red attacked trees)."),
+    # createsOutput("currentAttacks", "RasterLayer",
+    #               desc = "Current year MPB attack maps (number of red attacked trees)."),
     createsOutput("massAttacksStack", "RasterStack",
-                  desc = "Historical MPB attack maps (number of red attacked trees)."),
-    createsOutput("massAttacksDT", "data.table",
-                  desc = "same data (though presence only) as currentAttacks, but in data.table format. Colnames: ID for pixelID and ATKTREES for number of attacked trees")
+                  desc = "Historical MPB attack maps (number of red attacked trees).")
+    # createsOutput("massAttacksDT", "data.table",
+    #               desc = "same data (though presence only) as currentAttacks, but in data.table format. Colnames: ID for pixelID and ATKTREES for number of attacked trees")
   )
 ))
 
@@ -81,11 +81,11 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
            sim <- scheduleEvent(sim, P(sim)$.saveInitialTime, "mpbMassAttacksData", "save", .last())
          },
          "plot" = {
-           Plot(sim$currentAttacks)
-           Plot(sim$studyArea, addTo = "sim$currentAttacks", gp = gpar(col = "black", fill = 0),
-                title = "")
-           Plot(sim$studyAreaLarge, addTo = "sim$currentAttacks", gp = gpar(col = "black", fill = 0),
-                title = "")
+           # Plot(sim$currentAttacks)
+           # Plot(sim$studyArea, addTo = "sim$currentAttacks", gp = gpar(col = "black", fill = 0),
+           #      title = "")
+           # Plot(sim$studyAreaLarge, addTo = "sim$currentAttacks", gp = gpar(col = "black", fill = 0),
+           #      title = "")
 
            sim <- scheduleEvent(sim, time(sim) + P(sim)$.plotInterval, "mpbMassAttacksData", "plot", .last() - 1)
          },
@@ -160,14 +160,14 @@ Init <- function(sim) {
 
   setColors(sim$massAttacksStack) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksStack))
 
-  sim$currentAttacks <- sim$massAttacksStack[[paste0("X", start(sim))]]
-  setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
-
-  ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
-  sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$currentAttacks),
-                                  ATKTREES = sim$currentAttacks[]) %>%
-    setkey(., "ID")
-  sim$massAttacksDT <- sim$massAttacksDT[ATKTREES > 0]
+  # sim$currentAttacks <- sim$massAttacksStack[[paste0("X", start(sim))]]
+  # setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
+  #
+  # ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
+  # sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$currentAttacks),
+  #                                 ATKTREES = sim$currentAttacks[]) %>%
+  #   setkey(., "ID")
+  # sim$massAttacksDT <- sim$massAttacksDT[ATKTREES > 0]
 
   return(invisible(sim))
 }
