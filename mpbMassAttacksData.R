@@ -117,7 +117,7 @@ doEvent.mpbMassAttacksData <- function(sim, eventTime, eventType, debug = FALSE)
   if (!suppliedElsewhere("rasterToMatch", sim)) {
     sim$rasterToMatch <- Cache(
       LandR::prepInputsLCC,
-      year = 2005,
+      year = 2005, ## TODO: use 2010
       destinationPath = dPath,
       studyArea = sf::as_Spatial(sim$studyArea)
     )
