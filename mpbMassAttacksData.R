@@ -150,6 +150,7 @@ Init <- function(sim) {
   )
   sim$massAttacksStack <- Cache(prepInputsMPB_ABdata, url = datasets,
                               startYear = start(sim),
+                              endYear = end(sim),
                               rasterToMatch = sim$rasterToMatch,
                               maskWithRTM = TRUE,
                               disaggregateFactor = 10)
@@ -185,7 +186,8 @@ loadRasterStackTruncateYears <- function(fname, startTime) {
   allMaps
 }
 
-prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFactor = 10,
+prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
+                                 disaggregateFactor = 10,
                                  maskWithRTM = TRUE, ...) {
 
   outOuter <- lapply(urls, function(url)  {
@@ -206,8 +208,8 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFac
     yrs <- as.integer(yrs)
     layerNames$yearNum <- yrs
     out <- list()
-    if (startYear <= max(yrs)) {
-      yearsToDo <- startYear:(max(yrs))
+    if (startYear <= max(yrs) && endYear >= min(yrs)) {
+      yearsToDo <- max(startYear, min(yrs)):min(max(yrs), endYear)
       lays <- as.data.table(sapply(layerNames, function(x) x))
       rtmTemplate <- raster::raster(rasterToMatch)
       rtmNAs <- which(is.na(rasterToMatch[]))
