@@ -205,89 +205,91 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, disaggregateFac
     yrs <- ifelse(as.numeric(yrsAvail) > 50, paste0(19, yrsAvail), paste0(20, yrsAvail))
     yrs <- as.integer(yrs)
     layerNames$yearNum <- yrs
-    yearsToDo <- startYear:(max(yrs))
-    lays <- as.data.table(sapply(layerNames, function(x) x))
-    rtmTemplate <- raster::raster(rasterToMatch)
-    rtmNAs <- which(is.na(rasterToMatch[]))
-    rtmCRS <- st_crs(rasterToMatch)
-    if (disaggregateFactor > 1)
-      rasterToMatch <- raster(raster::disaggregate(rtmTemplate,
-                                                   fact = disaggregateFactor))
-
     out <- list()
-    for (ytd in yearsToDo) {
-      yrsIn <- lays[yearNum == ytd]$name
-      names(yrsIn) <- yrsIn
-      if (NROW(yrsIn)) {
-        pointsAndPolys <- Cache(lapply, yrsIn, function(y) {
-          message(crayon::green(y))
-          co <- capture.output(mpbMap <- sf::st_read(gdbName, layer = y))
-          mpbMap <- st_transform(mpbMap, rtmCRS)
-          mpbMap <- fixErrors(mpbMap, useCache = FALSE)
-          if (NROW(mpbMap)) {
-            if (all(sf::st_is(mpbMap, "POINT"))) {
-              mpbRaster <- rtmTemplate
-              mpbMapSp <- sf::as_Spatial(mpbMap)
-              pixels <- cellFromXY(rtmTemplate, mpbMapSp)
-              whNA <- is.na(pixels)
-              colnam <- grep("num_trees", names(mpbMapSp), ignore.case = TRUE, value = TRUE)
-              mpbMapSpOnRTM <- mpbMapSp[!whNA,]
-              pixelsOnRTM <- cellFromXY(rtmTemplate, mpbMapSpOnRTM)
-              # pixels <- which(pixels)[!whNA]
-              dt1 <- data.table(num_trees = mpbMapSpOnRTM[[colnam]], pixel = pixelsOnRTM)
-              dt1 <- dt1[, list(num_trees = sum(num_trees)), by = "pixel" ]
-              message(crayon::green(paste0("  There are total ", sum(dt1$num_trees),
-                                           " attacked trees on map due to pixels")))
-              mpbRaster[dt1$pixel] <- dt1$num_trees
-            } else {
-              mpbMap <- st_cast(mpbMap, "MULTIPOLYGON")
-              rrr <- st_crop(mpbMap, rasterToMatch)
-              rrr$area_new <- sf::st_area(rrr)
-              totAbund <- round(sum(abundance(rrr$area_new/1e4, rrr$POLY_PERC, avgDensity = 1125)), 0)
-              message(crayon::green(paste0("  There are total ", totAbund,
-                                           " attacked trees on map due to polygons")))
-              # mpbRaster2 <- fasterize::fasterize(mpbMap, rtmTemplate, field = "POLY_PERC")
-              mpbRaster <- fasterize::fasterize(mpbMap, rasterToMatch, field = "POLY_PERC")
-              whNoNA <- which(!is.na(mpbRaster[]))
-              mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA])
-              rasterizationDiff <- abs(sum(mpbRaster[][whNoNA], na.rm = T) - as.numeric(totAbund))/ as.numeric(totAbund)
-              mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
-              if (rasterizationDiff > 0.001) {
-                message(crayon::red(mess))
-                warning(mess)
+    if (startYear <= max(yrs)) {
+      yearsToDo <- startYear:(max(yrs))
+      lays <- as.data.table(sapply(layerNames, function(x) x))
+      rtmTemplate <- raster::raster(rasterToMatch)
+      rtmNAs <- which(is.na(rasterToMatch[]))
+      rtmCRS <- st_crs(rasterToMatch)
+      if (disaggregateFactor > 1)
+        rasterToMatch <- raster(raster::disaggregate(rtmTemplate,
+                                                     fact = disaggregateFactor))
+
+      for (ytd in yearsToDo) {
+        yrsIn <- lays[yearNum == ytd]$name
+        names(yrsIn) <- yrsIn
+        if (NROW(yrsIn)) {
+          pointsAndPolys <- Cache(lapply, yrsIn, function(y) {
+            message(crayon::green(y))
+            co <- capture.output(mpbMap <- sf::st_read(gdbName, layer = y))
+            mpbMap <- st_transform(mpbMap, rtmCRS)
+            mpbMap <- fixErrors(mpbMap, useCache = FALSE)
+            if (NROW(mpbMap)) {
+              if (all(sf::st_is(mpbMap, "POINT"))) {
+                mpbRaster <- rtmTemplate
+                mpbMapSp <- sf::as_Spatial(mpbMap)
+                pixels <- cellFromXY(rtmTemplate, mpbMapSp)
+                whNA <- is.na(pixels)
+                colnam <- grep("num_trees", names(mpbMapSp), ignore.case = TRUE, value = TRUE)
+                mpbMapSpOnRTM <- mpbMapSp[!whNA,]
+                pixelsOnRTM <- cellFromXY(rtmTemplate, mpbMapSpOnRTM)
+                # pixels <- which(pixels)[!whNA]
+                dt1 <- data.table(num_trees = mpbMapSpOnRTM[[colnam]], pixel = pixelsOnRTM)
+                dt1 <- dt1[, list(num_trees = sum(num_trees)), by = "pixel" ]
+                message(crayon::green(paste0("  There are total ", sum(dt1$num_trees),
+                                             " attacked trees on map due to pixels")))
+                mpbRaster[dt1$pixel] <- dt1$num_trees
               } else {
-                message(crayon::green(mess))
+                mpbMap <- st_cast(mpbMap, "MULTIPOLYGON")
+                rrr <- st_crop(mpbMap, rasterToMatch)
+                rrr$area_new <- sf::st_area(rrr)
+                totAbund <- round(sum(abundance(rrr$area_new/1e4, rrr$POLY_PERC, avgDensity = 1125)), 0)
+                message(crayon::green(paste0("  There are total ", totAbund,
+                                             " attacked trees on map due to polygons")))
+                # mpbRaster2 <- fasterize::fasterize(mpbMap, rtmTemplate, field = "POLY_PERC")
+                mpbRaster <- fasterize::fasterize(mpbMap, rasterToMatch, field = "POLY_PERC")
+                whNoNA <- which(!is.na(mpbRaster[]))
+                mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA])
+                rasterizationDiff <- abs(sum(mpbRaster[][whNoNA], na.rm = T) - as.numeric(totAbund))/ as.numeric(totAbund)
+                mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
+                if (rasterizationDiff > 0.001) {
+                  message(crayon::red(mess))
+                  warning(mess)
+                } else {
+                  message(crayon::green(mess))
+                }
+
+                if (disaggregateFactor > 1) {
+
+                  # data.table way
+                  mpbRasterDT <- aggregateRasByDT(mpbRaster, rtmTemplate, fn = sum)
+
+                  # Raster package way is WAY TOO SLOW
+                  # mpbRasterSmall <- raster::aggregate(mpbRaster, fact = disaggregateFactor, fun = sum)
+                  mpbRaster <- mpbRasterDT
+                }
               }
-
-              if (disaggregateFactor > 1) {
-
-                # data.table way
-                mpbRasterDT <- aggregateRasByDT(mpbRaster, rtmTemplate, fn = sum)
-
-                # Raster package way is WAY TOO SLOW
-                # mpbRasterSmall <- raster::aggregate(mpbRaster, fact = disaggregateFactor, fun = sum)
-                mpbRaster <- mpbRasterDT
-              }
+            } else {
+              mpbRaster <- NULL
             }
-          } else {
-            mpbRaster <- NULL
-          }
-          mpbRaster
-        })
+            mpbRaster
+          })
 
-        pointsAndPolys <- pointsAndPolys[!sapply(pointsAndPolys, is.null)]
-        if (length(pointsAndPolys) > 1) {
-          pointsAndPolys <- raster::stack(pointsAndPolys)
-          pointsAndPolys <- calc(pointsAndPolys, sum, na.rm = TRUE)
-        } else {
-          pointsAndPolys <- pointsAndPolys[[1]]
+          pointsAndPolys <- pointsAndPolys[!sapply(pointsAndPolys, is.null)]
+          if (length(pointsAndPolys) > 1) {
+            pointsAndPolys <- raster::stack(pointsAndPolys)
+            pointsAndPolys <- calc(pointsAndPolys, sum, na.rm = TRUE)
+          } else {
+            pointsAndPolys <- pointsAndPolys[[1]]
+          }
+          pointsAndPolys[pointsAndPolys[]==0] <- NA
+          if (isTRUE(maskWithRTM))
+            pointsAndPolys[rtmNAs] <- NA
+          # aasSmall <- trim(aas)
+          setColors(pointsAndPolys) <- c("Reds")
+          out[[paste0("X",ytd)]] <- pointsAndPolys
         }
-        pointsAndPolys[pointsAndPolys[]==0] <- NA
-        if (isTRUE(maskWithRTM))
-          pointsAndPolys[rtmNAs] <- NA
-        # aasSmall <- trim(aas)
-        setColors(pointsAndPolys) <- c("Reds")
-        out[[paste0("X",ytd)]] <- pointsAndPolys
       }
     }
     out
