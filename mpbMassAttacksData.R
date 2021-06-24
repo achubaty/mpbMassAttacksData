@@ -20,6 +20,12 @@ defineModule(sim, list(
                   "magrittr", "quickPlot", "PredictiveEcology/mpbutils (>= 0.1.2)",
                   "raster", "RColorBrewer", "sf", "sp", "spatialEco"),
   parameters = rbind(
+    defineParameter("startYear", "numeric", start(sim), NA, NA,
+                    "The start year for the sim$massAttacksData stack; this is needed as a parameter
+                    so that Cache can detect the change"),
+    defineParameter("endYear", "numeric", end(sim), NA, NA,
+                    "The end year for the sim$massAttacksData stack; this is needed as a parameter
+                    so that Cache can detect the change"),
     defineParameter(".maxMemory", "numeric", 1e+9, NA, NA,
                     "Used to set the 'maxmemory' raster option. See '?rasterOptions'."),
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
@@ -149,8 +155,8 @@ Init <- function(sim) {
     Y2020 = "https://drive.google.com/file/d/1S5Lw5g5ACcTyhf8kwR7sqwPzGOCjfpwB/view?usp=sharing" # 2020
   )
   sim$massAttacksStack <- Cache(prepInputsMPB_ABdata, url = datasets,
-                              startYear = start(sim),
-                              endYear = end(sim),
+                              startYear = Par$startYear,
+                              endYear = Par$endYear,
                               rasterToMatch = sim$rasterToMatch,
                               maskWithRTM = TRUE,
                               disaggregateFactor = 10)
@@ -160,15 +166,6 @@ Init <- function(sim) {
   sim$massAttacksStack <- raster::stack(sim$massAttacksStack)
 
   setColors(sim$massAttacksStack) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksStack))
-
-  # sim$currentAttacks <- sim$massAttacksStack[[paste0("X", start(sim))]]
-  # setColors(sim$currentAttacks) <- list(brewer.pal(9, "YlOrRd"))
-  #
-  # ## data.table of MPB attacks in study area (NUMTREES is number of attacked trees)
-  # sim$massAttacksDT <- data.table(ID = 1L:ncell(sim$currentAttacks),
-  #                                 ATKTREES = sim$currentAttacks[]) %>%
-  #   setkey(., "ID")
-  # sim$massAttacksDT <- sim$massAttacksDT[ATKTREES > 0]
 
   return(invisible(sim))
 }
