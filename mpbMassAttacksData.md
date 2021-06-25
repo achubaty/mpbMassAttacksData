@@ -144,6 +144,7 @@ Description of the module outputs.
 
 Mountain Pine Beetle Red Top Growth Model: Short-run Potential for Establishment, Eruption, and Spread.
 
+- `mpbClimateData`
 - `mpbPine`
 - `mpbRedTopSpread`
 

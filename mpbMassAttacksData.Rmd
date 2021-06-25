@@ -104,6 +104,7 @@ knitr::kable(df_outputs)
 
 Mountain Pine Beetle Red Top Growth Model: Short-run Potential for Establishment, Eruption, and Spread.
 
+- `mpbClimateData`
 - `mpbPine`
 - `mpbRedTopSpread`
 
