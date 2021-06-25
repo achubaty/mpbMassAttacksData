@@ -1,6 +1,6 @@
 defineModule(sim, list(
   name = "mpbMassAttacksData",
-  description = "Mountain Pine Beetle Red Top Growth Model: Short-run Potential for Establishment, Eruption, and Spread",
+  description = "Mountain Pine Beetle Red Attack Data (AB)",
   keywords = c("mountain pine beetle, outbreak dynamics, eruptive potential, spread, climate change, twitch response"),
   authors = c(
     person(c("Alex", "M"), "Chubaty", email = "achubaty@for-cast.ca", role = c("aut", "cre")),
@@ -21,7 +21,7 @@ defineModule(sim, list(
                   "raster", "RColorBrewer", "sf", "sp", "spatialEco"),
   parameters = rbind(
     defineParameter("startYear", "numeric", start(sim), NA, NA,
-                    "The start year for the sim$massAttacksData stack; this is needed as a parameter
+                    "The start year for the `sim$massAttacksData` stack; this is needed as a parameter
                     so that Cache can detect the change"),
     defineParameter("endYear", "numeric", end(sim), NA, NA,
                     "The end year for the sim$massAttacksData stack; this is needed as a parameter
@@ -155,12 +155,11 @@ Init <- function(sim) {
     Y2020 = "https://drive.google.com/file/d/1S5Lw5g5ACcTyhf8kwR7sqwPzGOCjfpwB/view?usp=sharing" # 2020
   )
   sim$massAttacksStack <- Cache(prepInputsMPB_ABdata, url = datasets,
-                              startYear = Par$startYear,
-                              endYear = Par$endYear,
-                              rasterToMatch = sim$rasterToMatch,
-                              maskWithRTM = TRUE,
-                              disaggregateFactor = 10)
-
+                                startYear = Par$startYear,
+                                endYear = Par$endYear,
+                                rasterToMatch = sim$rasterToMatch,
+                                maskWithRTM = TRUE,
+                                disaggregateFactor = 10)
 
   annualAbundances <- lapply(sim$massAttacksStack, function(x) round(sum(x[], na.rm = TRUE), 0))
   sim$massAttacksStack <- raster::stack(sim$massAttacksStack)
@@ -212,8 +211,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
       rtmNAs <- which(is.na(rasterToMatch[]))
       rtmCRS <- st_crs(rasterToMatch)
       if (disaggregateFactor > 1)
-        rasterToMatch <- raster(raster::disaggregate(rtmTemplate,
-                                                     fact = disaggregateFactor))
+        rasterToMatch <- raster(raster::disaggregate(rtmTemplate, fact = disaggregateFactor))
 
       for (ytd in yearsToDo) {
         yrsIn <- lays[yearNum == ytd]$name
@@ -221,7 +219,9 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
         if (NROW(yrsIn)) {
           pointsAndPolys <- Cache(lapply, yrsIn, function(y) {
             message(crayon::green(y))
-            co <- capture.output(mpbMap <- sf::st_read(gdbName, layer = y))
+            co <- capture.output({
+              mpbMap <- sf::st_read(gdbName, layer = y)
+            })
             mpbMap <- st_transform(mpbMap, rtmCRS)
             mpbMap <- fixErrors(mpbMap, useCache = FALSE)
             if (NROW(mpbMap)) {
@@ -250,7 +250,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
                 mpbRaster <- fasterize::fasterize(mpbMap, rasterToMatch, field = "POLY_PERC")
                 whNoNA <- which(!is.na(mpbRaster[]))
                 mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA])
-                rasterizationDiff <- abs(sum(mpbRaster[][whNoNA], na.rm = T) - as.numeric(totAbund))/ as.numeric(totAbund)
+                rasterizationDiff <- abs(sum(mpbRaster[][whNoNA], na.rm = T) - as.numeric(totAbund)) / as.numeric(totAbund)
                 mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
                 if (rasterizationDiff > 0.001) {
                   message(crayon::red(mess))
@@ -260,7 +260,6 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
                 }
 
                 if (disaggregateFactor > 1) {
-
                   # data.table way
                   mpbRasterDT <- aggregateRasByDT(mpbRaster, rtmTemplate, fn = sum)
 
@@ -282,7 +281,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
           } else {
             pointsAndPolys <- pointsAndPolys[[1]]
           }
-          pointsAndPolys[pointsAndPolys[]==0] <- NA
+          pointsAndPolys[pointsAndPolys[] == 0] <- NA
           if (isTRUE(maskWithRTM))
             pointsAndPolys[rtmNAs] <- NA
           # aasSmall <- trim(aas)
@@ -297,7 +296,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
 }
 
 abundance <- function(areaPerUnit, percentPerUnit, avgDensity = 1125) {
-  areaPerUnit*avgDensity*percentPerUnit/100
+  areaPerUnit * avgDensity * percentPerUnit / 100
 }
 
 aggregateRasByDT <- function(ras, newRas, fn = sum) {
@@ -312,5 +311,4 @@ aggregateRasByDT <- function(ras, newRas, fn = sum) {
   newRasOut <- raster(newRas)
   newRasOut[pixes] <- dt2$vals
   newRasOut
-
 }

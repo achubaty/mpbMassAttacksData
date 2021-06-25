@@ -4,24 +4,107 @@ author:
   - "Alex M. Chubaty"
   - "Barry J. Cooke"
   - "Eliot J. B. McIntire"
-date: "February 5, 2018"
+date: "June 25, 2021"
 output:
   html_document:
+    keep_md: yes
     toc: true
     toc_depth: 3
     toc_float: true
 bibliography:
-  - ../../bibliography.bib
+  - bibliography.bib
+editor_options:
+  chunk_output_type: console
 ---
 
-### `mpbMassAttacksData`
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, results = "hold")
+```
 
-This module imports the raw MPB red-top attack data from AB and BC over several years (2001-2016), following the methodology of @Cooke:2017fem.
-MPB attack data for AB (derived from spatial points) and BC (derived from spatial polygons) were reprojected to use an Albers equal-area conic projection and rasterized using a common resolution of 250 m x 250 m (matching the pine raster data) and merged into a single raster layer for each year.
-BC raster cell were calculated from the proportion of a polygon within that cell, again assuming an average stem density of 1125 stems/ha [per @Whitehead:2004rz].
-Raster cells for AB were calculated by summing the point values within each 6.25 ha raster cell.
+# Overview
+
+This module imports the raw MPB red-top attack data from AB over several years (2001-2020), following the methodology of @Cooke:2017fem.
+MPB attack data for AB (derived from spatial points and polygons) were reprojected to use a Lambert conformal conic projection and rasterized using a common resolution of 1 km and merged into a single raster layer for each year.
+Number of attacked trees per pixel is estimated using an average stem density of 1125 stems/ha [per @Whitehead:2004rz].
 Where possible, all data downloads and preprocessing were scripted for reproducibility from raw, original sources.
 
-Because of the long processing time and high memory requirements of the GIS operations performed during data preprocessing, with use a combination of caching approaches – implemented in the `reproducible` R package [@McIntire:2018reproducible] – to speed up subsequent loading and use of these data.
+Because of the long processing time and high memory requirements of the GIS operations performed during data preprocessing, with use a combination of caching approaches – implemented in the `reproducible` R package [@McIntire:2021] – to speed up subsequent loading and use of these data.
 All preprocessed data are made available in a private Google Drive folder, and subsequently downloaded from there when used by a `SpaDES` module.
 
+# Usage
+
+```{r module_usage}
+library(SpaDES.core)
+
+setPaths(modulePath = file.path(".."))
+getPaths() # shows where the 4 relevant paths are
+
+times <- list(start = 0, end = 10)
+
+parameters <- list(
+  #.progress = list(type = "text", interval = 1), # for a progress bar
+  ## If there are further modules, each can have its own set of parameters:
+  #module1 = list(param1 = value1, param2 = value2),
+  #module2 = list(param1 = value1, param2 = value2)
+)
+modules <- list("mpbMassAttacksData")
+objects <- list()
+inputs <- list()
+outputs <- list()
+
+mySim <- simInit(times = times, params = parameters, modules = modules,
+                 objects = objects)
+
+mySimOut <- spades(mySim)
+```
+
+# Parameters
+
+Provide a summary of user-visible parameters.
+
+```{r moduleParams, echo = FALSE, eval = TRUE}
+df_params <- SpaDES.core::moduleParams("mpbMassAttacksData", "..")
+knitr::kable(df_params)
+```
+
+# Events
+
+Describe what happens for each event type.
+
+## Plotting
+
+Write what is plotted.
+
+## Saving
+
+Write what is saved.
+
+# Data dependencies
+
+## Input data
+
+How to obtain input data, and a description of the data required by the module.
+If `sourceURL` is specified, `downloadData("mpbMassAttacksData", "..")` may be sufficient.
+
+```{r moduleInputs, echo = FALSE, eval = TRUE}
+df_inputs <- SpaDES.core::moduleInputs("mpbMassAttacksData", "..")
+knitr::kable(df_inputs)
+```
+
+## Output data
+
+Description of the module outputs.
+
+```{r moduleOutputs, echo = FALSE, eval = TRUE}
+df_outputs <- SpaDES.core::moduleOutputs("mpbMassAttacksData", "..")
+knitr::kable(df_outputs)
+```
+
+# Links to other modules
+
+Mountain Pine Beetle Red Top Growth Model: Short-run Potential for Establishment, Eruption, and Spread.
+
+- `mpbPine`
+- `mpbRedTopSpread`
+
+# References
