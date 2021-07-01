@@ -155,12 +155,11 @@ Init <- function(sim) {
     Y2020 = "https://drive.google.com/file/d/1S5Lw5g5ACcTyhf8kwR7sqwPzGOCjfpwB/view?usp=sharing" # 2020
   )
   sim$massAttacksStack <- Cache(prepInputsMPB_ABdata, url = datasets,
-                              startYear = Par$startYear,
-                              endYear = Par$endYear,
-                              rasterToMatch = sim$rasterToMatch,
-                              maskWithRTM = TRUE,
-                              disaggregateFactor = 10)
-
+                                startYear = P(sim)$startYear,
+                                endYear = P(sim)$endYear,
+                                rasterToMatch = sim$rasterToMatch,
+                                maskWithRTM = TRUE,
+                                disaggregateFactor = 10)
 
   annualAbundances <- lapply(sim$massAttacksStack, function(x) round(sum(x[], na.rm = TRUE), 0))
   sim$massAttacksStack <- raster::stack(sim$massAttacksStack)
