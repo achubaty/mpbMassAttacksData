@@ -191,12 +191,17 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
     fileInfo <- preProcess(url = url, fun = "sf::st_read", ..., archive = NA)
     dirForExtract <- file.path(dirname(fileInfo$targetFilePath), rndstr(1))
     message("extracting to ", dirForExtract)
-    system(paste0(Sys.which("7z"), " x ", fileInfo$targetFilePath, " -aos -o", dirForExtract))
-    gdbName <- dir(dirForExtract, pattern = ".gdb$", full.names = TRUE)
-    # out <- archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract)
 
-    #gdbName <- fileInfo$targetFilePath
-    #gdbName <- unique(dirname(out$path))[1]
+    if (reproducible:::isWindows()) {
+      system(paste0(Sys.which("7z"), " x ", fileInfo$targetFilePath, " -aos -o", dirForExtract))
+      # gdbName <- dir(dirForExtract, pattern = ".gdb$", full.names = TRUE)
+    } else {
+      out <- archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract)
+      #gdbName <- fileInfo$targetFilePath
+      #gdbName <- unique(dirname(out))[1]
+    }
+    gdbName <- dir(dirForExtract, pattern = ".gdb$", full.names = TRUE)
+
     origDir <- setwd(dirForExtract)
     on.exit(setwd(origDir))
     layerNames <- sf::st_layers(gdbName)
