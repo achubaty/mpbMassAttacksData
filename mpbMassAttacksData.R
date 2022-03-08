@@ -227,7 +227,9 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
         yrsIn <- lays[yearNum == ytd]$name
         names(yrsIn) <- yrsIn
         if (NROW(yrsIn)) {
-          pointsAndPolys <- Cache(lapply, yrsIn, function(y) {
+          pointsAndPolys <- Cache(lapply, yrsIn, rasterToMatch = rasterToMatch,
+                                  userTags = "pointsAndPolys",
+                                  function(y, rasterToMatch) {
             message(crayon::green(y))
             co <- capture.output({
               mpbMap <- sf::st_read(gdbName, layer = y)
