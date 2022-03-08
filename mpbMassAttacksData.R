@@ -192,13 +192,12 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
     dirForExtract <- file.path(dirname(fileInfo$targetFilePath), rndstr(1))
     message("extracting to ", dirForExtract)
 
-    if (reproducible:::isWindows()) {
+    out <- try(archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract), silent = TRUE)
+    if (is(out, "try-error")) {
+      SevenZip <- Sys.which("7z")
+      if (nchar(SevenZip) == 0)
+        stop("archive::archive_extract was unable to deal with this archive; 7z is also not installed; please install for your system")
       system(paste0(Sys.which("7z"), " x ", fileInfo$targetFilePath, " -aos -o", dirForExtract))
-      # gdbName <- dir(dirForExtract, pattern = ".gdb$", full.names = TRUE)
-    } else {
-      out <- archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract)
-      #gdbName <- fileInfo$targetFilePath
-      #gdbName <- unique(dirname(out))[1]
     }
     gdbName <- dir(dirForExtract, pattern = ".gdb$", full.names = TRUE)
 
