@@ -26,6 +26,9 @@ defineModule(sim, list(
     defineParameter("endYear", "numeric", end(sim), NA, NA,
                     "The end year for the sim$massAttacksData stack; this is needed as a parameter
                     so that Cache can detect the change"),
+    defineParameter("stemsPerHaAvg", "integer", 1125, NA, NA,
+                    desc = "The average number of pine stems per ha in the study area. ",
+                    "Taken from Whitehead & Russo (2005), Cooke & Carroll (2017)"),
     defineParameter(".maxMemory", "numeric", 1e+9, NA, NA,
                     "Used to set the 'maxmemory' raster option. See '?rasterOptions'."),
     defineParameter(".plotInitialTime", "numeric", NA, NA, NA,
@@ -159,6 +162,7 @@ Init <- function(sim) {
                                 endYear = Par$endYear,
                                 rasterToMatch = sim$rasterToMatch,
                                 maskWithRTM = TRUE,
+                                stemsPerHaAvg = P(sim)$stemsPerHaAvg,
                                 disaggregateFactor = 10)
 
   annualAbundances <- lapply(sim$massAttacksStack, function(x) round(sum(x[], na.rm = TRUE), 0))
@@ -183,7 +187,7 @@ loadRasterStackTruncateYears <- function(fname, startTime) {
 }
 
 prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
-                                 disaggregateFactor = 10,
+                                 disaggregateFactor = 10, stemsPerHaAvg,
                                  maskWithRTM = TRUE, ...) {
 
   outOuter <- lapply(urls, function(url)  {
@@ -254,13 +258,14 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
                 mpbMap <- st_cast(mpbMap, "MULTIPOLYGON")
                 rrr <- st_crop(mpbMap, rasterToMatch)
                 rrr$area_new <- sf::st_area(rrr)
-                totAbund <- round(sum(abundance(rrr$area_new/1e4, rrr$POLY_PERC, avgDensity = 1125)), 0)
+                totAbund <- round(sum(abundance(rrr$area_new/1e4, rrr$POLY_PERC, avgDensity = stemsPerHaAvg)), 0)
                 message(crayon::green(paste0("  There are total ", totAbund,
                                              " attacked trees on map due to polygons")))
                 # mpbRaster2 <- fasterize::fasterize(mpbMap, rtmTemplate, field = "POLY_PERC")
                 mpbRaster <- fasterize::fasterize(mpbMap, rasterToMatch, field = "POLY_PERC")
                 whNoNA <- which(!is.na(mpbRaster[]))
-                mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA])
+                mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA],
+                                               avgDensity = stemsPerHaAvg)
                 rasterizationDiff <- abs(sum(mpbRaster[][whNoNA], na.rm = T) - as.numeric(totAbund)) / as.numeric(totAbund)
                 mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
                 if (rasterizationDiff > 0.001) {
@@ -306,7 +311,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
   Reduce(modifyList, outOuter)
 }
 
-abundance <- function(areaPerUnit, percentPerUnit, avgDensity = 1125) {
+abundance <- function(areaPerUnit, percentPerUnit, avgDensity) {
   areaPerUnit * avgDensity * percentPerUnit / 100
 }
 
