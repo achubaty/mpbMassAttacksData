@@ -166,9 +166,9 @@ Init <- function(sim) {
                                 disaggregateFactor = 10)
 
   annualAbundances <- lapply(sim$massAttacksStack, function(x) round(sum(x[], na.rm = TRUE), 0))
-  sim$massAttacksStack <- raster::stack(sim$massAttacksStack)
+  sim$massAttacksStack <- terra::rast(sim$massAttacksStack)
 
-  setColors(sim$massAttacksStack) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksStack))
+  # setColors(sim$massAttacksStack) <- rep(list(brewer.pal(9, "YlOrRd")), nlayers(sim$massAttacksStack))
 
   return(invisible(sim))
 }
@@ -220,11 +220,11 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
     if (startYear <= max(yrs) && endYear >= min(yrs)) {
       yearsToDo <- max(startYear, min(yrs)):min(max(yrs), endYear)
       lays <- as.data.table(sapply(layerNames, function(x) x))
-      rtmTemplate <- raster::raster(rasterToMatch)
+      rtmTemplate <- terra::rast(rasterToMatch)
       rtmNAs <- which(is.na(rasterToMatch[]))
       rtmCRS <- st_crs(rasterToMatch)
       if (disaggregateFactor > 1)
-        rasterToMatch <- raster(raster::disaggregate(rtmTemplate, fact = disaggregateFactor))
+        rasterToMatch <- terra::rast(terra::disagg(rtmTemplate, fact = disaggregateFactor))
 
       for (ytd in yearsToDo) {
         yrsIn <- lays[yearNum == ytd]$name
@@ -237,32 +237,35 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
             co <- capture.output({
               mpbMap <- sf::st_read(gdbName, layer = y)
             })
-            mpbMap <- st_transform(mpbMap, rtmCRS)
-            mpbMap <- fixErrors(mpbMap, useCache = FALSE)
+            mpbMap <- projectTo(mpbMap, rtmCRS)
+            mpbMap <- fixErrorsIn(mpbMap)
             if (NROW(mpbMap)) {
               if (all(sf::st_is(mpbMap, "POINT"))) {
                 mpbRaster <- rtmTemplate
-                mpbMapSp <- sf::as_Spatial(mpbMap)
-                pixels <- cellFromXY(rtmTemplate, mpbMapSp)
+                # mpbMapSp <- sf::as_Spatial(mpbMap)
+                pixels <- cellFromXY(rtmTemplate, st_coordinates(mpbMap))
                 whNA <- is.na(pixels)
-                colnam <- grep("num_trees", names(mpbMapSp), ignore.case = TRUE, value = TRUE)
-                mpbMapSpOnRTM <- mpbMapSp[!whNA,]
-                pixelsOnRTM <- cellFromXY(rtmTemplate, mpbMapSpOnRTM)
+                colnam <- grep("num_trees", names(mpbMap), ignore.case = TRUE, value = TRUE)
+                # mpbMapSpOnRTM <- mpbMapSp[!whNA,]
+                mpbMapOnRTM <- mpbMap[!whNA,]
+                pixelsOnRTM <- cellFromXY(rtmTemplate, st_coordinates(mpbMapOnRTM))
                 # pixels <- which(pixels)[!whNA]
-                dt1 <- data.table(num_trees = mpbMapSpOnRTM[[colnam]], pixel = pixelsOnRTM)
+                dt1 <- data.table(num_trees = mpbMapOnRTM[[colnam]], pixel = pixelsOnRTM)
                 dt1 <- dt1[, list(num_trees = sum(num_trees)), by = "pixel" ]
                 message(crayon::green(paste0("  There are total ", sum(dt1$num_trees),
                                              " attacked trees on map due to pixels")))
                 mpbRaster[dt1$pixel] <- dt1$num_trees
               } else {
                 mpbMap <- st_cast(mpbMap, "MULTIPOLYGON")
-                rrr <- st_crop(mpbMap, rasterToMatch)
+                rrr <- cropTo(mpbMap, rasterToMatch)
                 rrr$area_new <- sf::st_area(rrr)
                 totAbund <- round(sum(abundance(rrr$area_new/1e4, rrr$POLY_PERC, avgDensity = stemsPerHaAvg)), 0)
                 message(crayon::green(paste0("  There are total ", totAbund,
                                              " attacked trees on map due to polygons")))
                 # mpbRaster2 <- fasterize::fasterize(mpbMap, rtmTemplate, field = "POLY_PERC")
-                mpbRaster <- fasterize::fasterize(mpbMap, rasterToMatch, field = "POLY_PERC")
+
+                # Leave this as a `raster` as it is a temporary object anyway... fasterize is still faster than terra::rasterize
+                mpbRaster <- fasterize::fasterize(mpbMap, raster::raster(rasterToMatch), field = "POLY_PERC")
                 whNoNA <- which(!is.na(mpbRaster[]))
                 mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA],
                                                avgDensity = stemsPerHaAvg)
@@ -277,7 +280,7 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
 
                 if (disaggregateFactor > 1) {
                   # data.table way
-                  mpbRasterDT <- aggregateRasByDT(mpbRaster, rtmTemplate, fn = sum)
+                  mpbRasterDT <- terra::rast(aggregateRasByDT(mpbRaster, rtmTemplate, fn = sum))
 
                   # Raster package way is WAY TOO SLOW
                   # mpbRasterSmall <- raster::aggregate(mpbRaster, fact = disaggregateFactor, fun = sum)
@@ -292,16 +295,14 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
 
           pointsAndPolys <- pointsAndPolys[!sapply(pointsAndPolys, is.null)]
           if (length(pointsAndPolys) > 1) {
-            pointsAndPolys <- raster::stack(pointsAndPolys)
-            pointsAndPolys <- calc(pointsAndPolys, sum, na.rm = TRUE)
+            pointsAndPolys <- terra::rast(pointsAndPolys)
+            pointsAndPolys <- sum(pointsAndPolys, na.rm = TRUE)#, sum, na.rm = TRUE)
           } else {
             pointsAndPolys <- pointsAndPolys[[1]]
           }
           pointsAndPolys[pointsAndPolys[] == 0] <- NA
           if (isTRUE(maskWithRTM))
             pointsAndPolys[rtmNAs] <- NA
-          # aasSmall <- trim(aas)
-          setColors(pointsAndPolys) <- c("Reds")
           out[[paste0("X",ytd)]] <- pointsAndPolys
         }
       }
