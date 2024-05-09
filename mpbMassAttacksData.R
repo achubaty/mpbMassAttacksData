@@ -162,6 +162,7 @@ Init <- function(sim) {
                                 endYear = Par$endYear,
                                 rasterToMatch = sim$rasterToMatch,
                                 maskWithRTM = TRUE,
+                                destinationPath = inputPath(sim),
                                 stemsPerHaAvg = P(sim)$stemsPerHaAvg,
                                 disaggregateFactor = 10)
 
@@ -187,13 +188,13 @@ loadRasterStackTruncateYears <- function(fname, startTime) {
 }
 
 prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
-                                 disaggregateFactor = 10, stemsPerHaAvg,
+                                 disaggregateFactor = 10, destinationPath, stemsPerHaAvg,
                                  maskWithRTM = TRUE, ...) {
 
   outOuter <- lapply(urls, function(url)  {
     # fileInfo <- prepInputs(url = url, fun = NULL, ..., archive = NA)
-    fileInfo <- preProcess(url = url, fun = "sf::st_read", ..., archive = NA)
-    dirForExtract <- file.path(dirname(fileInfo$targetFilePath), rndstr(1))
+    fileInfo <- preProcess(url = url, fun = "sf::st_read", destinationPath = destinationPath, ..., archive = NA)
+    dirForExtract <- file.path(destinationPath, "MPB_data_AB")
     message("extracting to ", dirForExtract)
 
     out <- try(archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract), silent = TRUE)
