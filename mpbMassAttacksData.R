@@ -193,17 +193,23 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
 
   outOuter <- lapply(urls, function(url)  {
     # fileInfo <- prepInputs(url = url, fun = NULL, ..., archive = NA)
-    fileInfo <- preProcess(url = url, fun = "sf::st_read", destinationPath = destinationPath, ..., archive = NA)
-    dirForExtract <- file.path(destinationPath, "MPB_data_AB")
-    message("extracting to ", dirForExtract)
 
-    out <- try(archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract), silent = TRUE)
-    if (is(out, "try-error")) {
-      SevenZip <- Sys.which("7z")
-      if (nchar(SevenZip) == 0)
-        stop("archive::archive_extract was unable to deal with this archive; 7z is also not installed; please install for your system")
-      system(paste0(Sys.which("7z"), " x ", fileInfo$targetFilePath, " -aos -o", dirForExtract))
-    }
+    dirForExtract <- file.path(destinationPath, "MPB_data_AB")
+    a <- prepInputs(url = url, fun = "sf::st_read",
+                    destinationPath = dirForExtract,
+                    targetFile = "MPB_AERIAL_SURVEY.gdb"
+    ) |> Cache()
+
+    # fileInfo <- preProcess(url = url, fun = "sf::st_read", destinationPath = destinationPath, ..., archive = NA)
+    # message("extracting to ", dirForExtract)
+    #
+    # out <- try(archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract), silent = TRUE)
+    # if (is(out, "try-error")) {
+    #   SevenZip <- Sys.which("7z")
+    #   if (nchar(SevenZip) == 0)
+    #     stop("archive::archive_extract was unable to deal with this archive; 7z is also not installed; please install for your system")
+    #   system(paste0(Sys.which("7z"), " x ", fileInfo$targetFilePath, " -aos -o", dirForExtract))
+    # }
     gdbName <- dir(dirForExtract, pattern = ".gdb$", full.names = TRUE)
 
     origDir <- setwd(dirForExtract)
@@ -224,6 +230,9 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
       rtmTemplate <- terra::rast(rasterToMatch)
       rtmNAs <- which(is.na(rasterToMatch[]))
       rtmCRS <- st_crs(rasterToMatch)
+      dig <- CacheDigest(list(rtmTemplate, disaggregateFactor)) |> suppressWarnings()
+      allFilesInGDB <- asPath(dir(gdbName, recursive = TRUE, full.names = TRUE))
+      digGDB <- CacheDigest(allFilesInGDB)
       if (disaggregateFactor > 1)
         rasterToMatch <- terra::rast(terra::disagg(rtmTemplate, fact = disaggregateFactor))
 
@@ -231,68 +240,76 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
         yrsIn <- lays[yearNum == ytd]$name
         names(yrsIn) <- yrsIn
         if (NROW(yrsIn)) {
-          pointsAndPolys <- Cache(lapply, yrsIn, rasterToMatch = rasterToMatch,
-                                  userTags = "pointsAndPolys",
-                                  function(y, rasterToMatch) {
-            message(crayon::green(y))
-            co <- capture.output({
-              mpbMap <- sf::st_read(gdbName, layer = y)
-            })
-            mpbMap <- projectTo(mpbMap, rtmCRS)
-            mpbMap <- fixErrorsIn(mpbMap)
-            if (NROW(mpbMap)) {
-              if (all(sf::st_is(mpbMap, "POINT"))) {
-                mpbRaster <- rtmTemplate
-                # mpbMapSp <- sf::as_Spatial(mpbMap)
-                pixels <- cellFromXY(rtmTemplate, st_coordinates(mpbMap))
-                whNA <- is.na(pixels)
-                colnam <- grep("num_trees", names(mpbMap), ignore.case = TRUE, value = TRUE)
-                # mpbMapSpOnRTM <- mpbMapSp[!whNA,]
-                mpbMapOnRTM <- mpbMap[!whNA,]
-                pixelsOnRTM <- cellFromXY(rtmTemplate, st_coordinates(mpbMapOnRTM))
-                # pixels <- which(pixels)[!whNA]
-                dt1 <- data.table(num_trees = mpbMapOnRTM[[colnam]], pixel = pixelsOnRTM)
-                dt1 <- dt1[, list(num_trees = sum(num_trees)), by = "pixel" ]
-                message(crayon::green(paste0("  There are total ", sum(dt1$num_trees),
-                                             " attacked trees on map due to pixels")))
-                mpbRaster[dt1$pixel] <- dt1$num_trees
-              } else {
-                mpbMap <- st_cast(mpbMap, "MULTIPOLYGON")
-                rrr <- cropTo(mpbMap, rasterToMatch)
-                rrr$area_new <- sf::st_area(rrr)
-                totAbund <- round(sum(abundance(rrr$area_new/1e4, rrr$POLY_PERC, avgDensity = stemsPerHaAvg)), 0)
-                message(crayon::green(paste0("  There are total ", totAbund,
-                                             " attacked trees on map due to polygons")))
-                # mpbRaster2 <- fasterize::fasterize(mpbMap, rtmTemplate, field = "POLY_PERC")
 
-                # Leave this as a `raster` as it is a temporary object anyway... fasterize is still faster than terra::rasterize
-                mpbRaster <- fasterize::fasterize(mpbMap, raster::raster(rasterToMatch), field = "POLY_PERC")
-                whNoNA <- which(!is.na(mpbRaster[]))
-                mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA],
-                                               avgDensity = stemsPerHaAvg)
-                rasterizationDiff <- abs(sum(mpbRaster[][whNoNA], na.rm = T) - as.numeric(totAbund)) / as.numeric(totAbund)
-                mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
-                if (rasterizationDiff > 0.001) {
-                  message(crayon::red(mess))
-                  warning(mess)
-                } else {
-                  message(crayon::green(mess))
-                }
+          pointsAndPolys <- lapply(yrsIn, rasterToMatch = rasterToMatch,
+                                   function(y, rasterToMatch) {
+                                     message(crayon::green(y))
+                                     co <- capture.output({
+                                       mpbMap <- sf::st_read(gdbName, layer = y)
+                                     })
+                                     mpbMap <- projectTo(mpbMap, rtmCRS)
+                                     mpbMap <- fixErrorsIn(mpbMap)
+                                     if (NROW(mpbMap)) {
+                                       if (all(sf::st_is(mpbMap, "POINT"))) {
+                                         mpbRaster <- rtmTemplate
+                                         # mpbMapSp <- sf::as_Spatial(mpbMap)
+                                         pixels <- cellFromXY(rtmTemplate, st_coordinates(mpbMap))
+                                         whNA <- is.na(pixels)
+                                         colnam <- grep("num_trees", names(mpbMap), ignore.case = TRUE, value = TRUE)
+                                         # mpbMapSpOnRTM <- mpbMapSp[!whNA,]
+                                         mpbMapOnRTM <- mpbMap[!whNA,]
+                                         pixelsOnRTM <- cellFromXY(rtmTemplate, st_coordinates(mpbMapOnRTM))
+                                         # pixels <- which(pixels)[!whNA]
+                                         dt1 <- data.table(num_trees = mpbMapOnRTM[[colnam]], pixel = pixelsOnRTM)
+                                         dt1 <- dt1[, list(num_trees = sum(num_trees)), by = "pixel" ]
+                                         message(crayon::green(paste0("  There are total ", sum(dt1$num_trees),
+                                                                      " attacked trees on map due to pixels")))
+                                         mpbRaster[dt1$pixel] <- dt1$num_trees
+                                       } else {
+                                         mpbMap <- st_cast(mpbMap, "MULTIPOLYGON")
+                                         mpbMap <- cropTo(mpbMap, rasterToMatch)
+                                         mpbMap$area_new <- sf::st_area(mpbMap)
+                                         if (is.null(mpbMap$POLY_PERC)) {
+                                           if (!all(unique(mpbMap$SEVERITY %in% 1:3))) browser()
+                                           mpbMap$POLY_PERC <- ifelse(mpbMap$SEVERITY == 1, 0.05, ifelse(mpbMap$SEVERITY == 2, 0.25, ifelse(mpbMap$SEVERITY ==  3, 0.5, 0)))
+                                         }
+                                         totAbund <- round(sum(abundance(mpbMap$area_new/1e4, mpbMap$POLY_PERC, avgDensity = stemsPerHaAvg)), 0)
+                                         message(crayon::green(paste0("  There are total ", totAbund,
+                                                                      " attacked trees on map due to polygons")))
+                                         # mpbRaster2 <- fasterize::fasterize(mpbMap, rtmTemplate, field = "POLY_PERC")
 
-                if (disaggregateFactor > 1) {
-                  # data.table way
-                  mpbRasterDT <- terra::rast(aggregateRasByDT(mpbRaster, rtmTemplate, fn = sum))
+                                         # Leave this as a `raster` as it is a temporary object anyway... fasterize is still faster than terra::rasterize
+                                         mpbRaster <- fasterize::fasterize(mpbMap, raster::raster(rasterToMatch), field = "POLY_PERC")
+                                         whNoNA <- which(!is.na(mpbRaster[]))
+                                         mpbRaster[whNoNA] <- abundance(areaPerUnit = (prod(res(mpbRaster)))/1e4, percentPerUnit = mpbRaster[whNoNA],
+                                                                        avgDensity = stemsPerHaAvg)
+                                         rasterizationDiff <- abs(sum(mpbRaster[][whNoNA], na.rm = T) - as.numeric(totAbund)) / as.numeric(totAbund)
+                                         if (!anyNA(rasterizationDiff)) {
+                                           mess <- paste0("  Rasterization % deviation of total number of trees attacked: ", round(rasterizationDiff*100, 3))
+                                           if (rasterizationDiff > 0.001) {
+                                             message(crayon::red(mess))
+                                             warning(mess)
+                                           } else {
+                                             message(crayon::green(mess))
+                                           }
+                                         }
 
-                  # Raster package way is WAY TOO SLOW
-                  # mpbRasterSmall <- raster::aggregate(mpbRaster, fact = disaggregateFactor, fun = sum)
-                  mpbRaster <- mpbRasterDT
-                }
-              }
-            } else {
-              mpbRaster <- NULL
-            }
-            mpbRaster
-          })
+                                         if (disaggregateFactor > 1) {
+                                           # data.table way
+                                           mpbRasterDT <- terra::rast(aggregateRasByDT(mpbRaster, rtmTemplate, fn = sum))
+
+                                           # Raster package way is WAY TOO SLOW
+                                           # mpbRasterSmall <- raster::aggregate(mpbRaster, fact = disaggregateFactor, fun = sum)
+                                           mpbRaster <- mpbRasterDT
+                                         }
+                                       }
+                                     } else {
+                                       mpbRaster <- NULL
+                                     }
+                                     mpbRaster
+                                   }) |>
+            Cache(omitArgs = "rasterToMatch", .cacheExtra = c(dig, digGDB),
+                  userTags = "pointsAndPolys")
 
           pointsAndPolys <- pointsAndPolys[!sapply(pointsAndPolys, is.null)]
           if (length(pointsAndPolys) > 1) {
