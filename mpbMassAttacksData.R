@@ -191,25 +191,27 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
                                  disaggregateFactor = 10, destinationPath, stemsPerHaAvg,
                                  maskWithRTM = TRUE, ...) {
 
-  outOuter <- lapply(urls, function(url)  {
+  outOuter <- Map(url = urls, nam = names(urls), function(url, nam)  {
     # fileInfo <- prepInputs(url = url, fun = NULL, ..., archive = NA)
 
-    dirForExtract <- file.path(destinationPath, "MPB_data_AB")
+    dirForExtract <- file.path(destinationPath, "MPB_data_AB", nam)
     a <- prepInputs(url = url, fun = "sf::st_read",
                     destinationPath = dirForExtract,
                     targetFile = "MPB_AERIAL_SURVEY.gdb"
     ) |> Cache()
 
-    # fileInfo <- preProcess(url = url, fun = "sf::st_read", destinationPath = destinationPath, ..., archive = NA)
-    # message("extracting to ", dirForExtract)
-    #
-    # out <- try(archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract), silent = TRUE)
-    # if (is(out, "try-error")) {
-    #   SevenZip <- Sys.which("7z")
-    #   if (nchar(SevenZip) == 0)
-    #     stop("archive::archive_extract was unable to deal with this archive; 7z is also not installed; please install for your system")
-    #   system(paste0(Sys.which("7z"), " x ", fileInfo$targetFilePath, " -aos -o", dirForExtract))
-    # }
+    if (FALSE) { # this is "non-prepInputs" original way
+      fileInfo <- preProcess(url = url, fun = "sf::st_read", destinationPath = destinationPath, ..., archive = NA)
+      message("extracting to ", dirForExtract)
+
+      out <- try(archive::archive_extract(fileInfo$targetFilePath, dir = dirForExtract), silent = TRUE)
+      if (is(out, "try-error")) {
+        SevenZip <- Sys.which("7z")
+        if (nchar(SevenZip) == 0)
+          stop("archive::archive_extract was unable to deal with this archive; 7z is also not installed; please install for your system")
+        system(paste0(Sys.which("7z"), " x ", fileInfo$targetFilePath, " -aos -o", dirForExtract))
+      }
+    }
     gdbName <- dir(dirForExtract, pattern = ".gdb$", full.names = TRUE)
 
     origDir <- setwd(dirForExtract)
