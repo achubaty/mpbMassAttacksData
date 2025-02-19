@@ -195,10 +195,15 @@ prepInputsMPB_ABdata <- function(urls, rasterToMatch, startYear, endYear,
     # fileInfo <- prepInputs(url = url, fun = NULL, ..., archive = NA)
 
     dirForExtract <- file.path(destinationPath, "MPB_data_AB", nam)
+    if (nzchar(getOption("reproducible.inputPaths"))) {
+      opts <- options("reproducible.inputPaths" = file.path(getOption("reproducible.inputPaths"), nam))
+      on.exit(options(opts), add = TRUE)
+    }
     a <- prepInputs(url = url, fun = "sf::st_read",
                     destinationPath = dirForExtract,
                     targetFile = "MPB_AERIAL_SURVEY.gdb"
-    ) |> Cache()
+    ) |> Cache(.functionName = paste0("prepInputs_", "MPB_AERIAL_SURVEY_", nam))
+
 
     if (FALSE) { # this is "non-prepInputs" original way
       fileInfo <- preProcess(url = url, fun = "sf::st_read", destinationPath = destinationPath, ..., archive = NA)
